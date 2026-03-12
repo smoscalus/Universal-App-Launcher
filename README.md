@@ -52,6 +52,7 @@ WIP...
 {
   "id": "int",
   "name": "sting",
+  "avatarUrl": "string"
 }
 ```
 
@@ -61,10 +62,13 @@ WIP...
   "id": "int",
   "name": "sting",
   "description": "string",
+  "path": "string",
   "userId": "int",
-  "tagId": "int" 
+  "tagId": "int",
+  "presetId": "int" 
 }
 ```
+
 ## Category
 ```
 {
@@ -79,8 +83,18 @@ WIP...
 ```
 {
   "id": "int",
-  "name": "sting",
+  "name": "string",
+  "description": "string"
+}
+```
+
+## Preset
+```
+{
+  "id": "int",
+  "name": "string",
   "description": "string",
+  "userId": "int"
 }
 ```
 WIP...
