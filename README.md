@@ -40,11 +40,6 @@ WIP...
 WIP...
 ```
 
-## 📡 API Endpoints
-```
-WIP...
-```
-
 # 📊 Data Models
 
 ## User
