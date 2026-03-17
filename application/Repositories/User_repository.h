@@ -1,14 +1,14 @@
 #pragma once
 
-#include "Resource.h"
+#include "User.h"
 
 using namespace domain_models;
 
-class Resource_repository
+class User_repository
 {
 public:
     uint64_t create();
-    Resource update();
-    Resource get_by_id();
+    void update();
+    User get_by_id();
     void remove();
 };
