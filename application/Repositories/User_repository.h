@@ -7,8 +7,8 @@ using namespace domain_models;
 class User_repository
 {
 public:
-    uint64_t create();
+    uint64_t add();
     void update();
     User get_by_id();
-    void remove();
+    void del();
 };
