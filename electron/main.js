@@ -11,9 +11,6 @@ function createWindow() {
     }
   });
 
-  // Загружаем твой интерфейс. 
-  // Убедись, что путь правильный относительно main.js!
-  // Если index.html лежит в папке renderer:
   win.loadFile(path.join(__dirname, 'renderer/index.html'));
 
   win.webContents.openDevTools();
