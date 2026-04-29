@@ -1,0 +1,21 @@
+{
+    "configurations": [
+        {
+            "name": "Emscripten-Hybrid",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/home/mosc/tools/emsdk/upstream/emscripten/cache/sysroot/include",
+                "/home/mosc/tools/emsdk/upstream/emscripten/cache/sysroot/include/c++/v1"
+            ],
+            "defines": [
+                "__EMSCRIPTEN__",
+                "__cplusplus=201703L"
+            ],
+            "compilerPath": "/usr/bin/g++",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "linux-gcc-x64"
+        }
+    ],
+    "version": 4
+}

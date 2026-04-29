@@ -1,1 +1,15 @@
-build
+# Node
+node_modules/
+npm-debug.log
+
+# Build
+build/
+bin/
+*.wasm
+*.js.mem
+
+# Emscripten SDK (на случай если случайно клонировал внутрь)
+emsdk/
+
+# OS
+.DS_Store

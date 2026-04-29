@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Universal Launcher Debug</title>
+</head>
+
+<body>
+    <h1>🚀 Launcher Core Test</h1>
+
+    <div id="ui">
+        <input type="text" id="name" placeholder="Назва">
+        <input type="text" id="path" placeholder="Шлях">
+        <button onclick="save()">Зберегти</button>
+    </div>
+
+    <script src="launcher.js"></script>
+
+    <script>
+        let core;
+        createLauncherModule().then(Module => {
+            core = Module;
+            console.log("✅ WASM Core загружено успешно!");
+        });
+
+        function save() {
+            const n = document.getElementById('name').value;
+            const p = document.getElementById('path').value;
+
+            if (core && core.saveResource) {
+                core.saveResource(Math.floor(Math.random() * 100), n, p);
+                console.log("📤 Відправлено в C++");
+            } else {
+                console.error("❌ WASM не ініціалізовано або функція saveResource не знайдена");
+            }
+        }
+    </script>
+</body>
+
+</html>
