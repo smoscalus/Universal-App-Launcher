@@ -28,11 +28,21 @@
             const n = document.getElementById('name').value;
             const p = document.getElementById('path').value;
 
-            if (core && core.saveResource) {
-                core.saveResource(Math.floor(Math.random() * 100), n, p);
-                console.log("📤 Відправлено в C++");
+            if (core && core.createResource) {
+                const request = {
+                    name: n,
+                    description: "Some description",
+                    path: p,
+                    userId: 42
+                };
+
+                const response = core.createResource(request);
+
+                console.log("ID:", response.id);
+                console.log("Success:", response.success);
+                console.log("Message:", response.message);
             } else {
-                console.error("❌ WASM не ініціалізовано або функція saveResource не знайдена");
+                console.error("❌ WASM не готов");
             }
         }
     </script>

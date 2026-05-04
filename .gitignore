@@ -4,6 +4,7 @@ npm-debug.log
 
 # Build
 build/
+build_wasm/
 bin/
 *.wasm
 *.js.mem
