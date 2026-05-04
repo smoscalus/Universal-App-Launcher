@@ -5,7 +5,8 @@ namespace DTO
         std::string name;
         std::string description;
         std::string path;
-        int userId;
+        int user_id;
+        int category_id;
     };
 
     struct CreateResourceResponse {
