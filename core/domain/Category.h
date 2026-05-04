@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace domain_models
+namespace dm
 {
     struct Category
     {
