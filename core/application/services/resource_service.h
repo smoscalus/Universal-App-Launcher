@@ -13,6 +13,7 @@ public:
     ResourceService(Engine::Database& db);
 
     std::vector<DTO::ResourceDto> getAllResources();
+    DTO::ResourceDto getResourceById(uint64_t id);
     int createResource(const DTO::CreateResourceRequest& req);
     bool launchResource(uint64_t id);
     void deleteResource(uint64_t id);

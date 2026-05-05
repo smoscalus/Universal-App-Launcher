@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../application/services/ResourceService.h"
+#include "../../application/services/resource_service.h"
 #include "../infrastructure/install/include/Crow/crow_all.h"
 
 class ResourceController {

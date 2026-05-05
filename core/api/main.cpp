@@ -3,7 +3,7 @@
 #include "../infrastructure/install/include/Crow/crow_all.h"
 
 #include "controllers/resource_api.h"
-#include "../application/services/ResourceService.h"
+#include "../application/services/resource_service.h"
 #include "../infrastructure/install/include/hellnah/Engine/Database.h" 
 
 int main() {

@@ -30,6 +30,18 @@ void ResourceController::setup_routes() {
     }); 
 
 
+    CROW_ROUTE(_app, "/resource/<int>")
+    ([this](int id) {
+        auto dto = _service.getResourceById(static_cast<uint64_t>(id));
+        
+        if (dto.id == 0) {
+            return crow::response(404, "Not Found");
+        }
+        
+        return crow::response(dto.to_json());
+    });
+
+
     CROW_ROUTE(_app, "/resources") 
     ([this]() { 
         auto allDto = _service.getAllResources(); 

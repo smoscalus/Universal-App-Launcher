@@ -1,4 +1,4 @@
-#include "ResourceService.h" 
+#include "resource_service.h" 
 #include "../mappers/resource_mapper.h" 
 #include <cstring>
 #include <vector>
@@ -17,6 +17,20 @@
             std::cerr << "DB Insert Error: " << e.what() << std::endl;
             return -1;
         }
+    }
+
+    DTO::ResourceDto ResourceService::getResourceById(uint64_t id) {
+    try {
+        dm::Resource res = _table.get(id);
+        
+        if (res.name[0] == '\0') {
+            throw std::runtime_error("Resource not found");
+        }
+
+        return ResourceMapper::to_dto(res, id);
+    } catch (...) {
+        return DTO::ResourceDto{0, "", "", "", 0, 0};
+    }
     }
 
     std::vector<DTO::ResourceDto> ResourceService::getAllResources() {
