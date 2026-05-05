@@ -1,9 +1,9 @@
 #pragma once
 
 #include <vector>
-
 #include "../../infrastructure/install/include/hellnah/Engine/Database.h"
-#include "../domain/Resource.h"
+#include "../dto/Resource.h"
+#include "../../domain/Resource.h"
 
 class ResourceService {
 private:
@@ -12,11 +12,8 @@ private:
 public:
     ResourceService(Engine::Database& db);
 
-    bool createResource(dm::Resource& res);
-    std::vector<dm::Resource> getAllResources();
-    dm::Resource getResourceById(uint64_t id);
-    
-    void deleteResource(uint64_t id);
-
+    std::vector<DTO::ResourceDto> getAllResources();
+    int createResource(const DTO::CreateResourceRequest& req);
     bool launchResource(uint64_t id);
+    void deleteResource(uint64_t id);
 };
