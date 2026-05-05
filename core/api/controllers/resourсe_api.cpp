@@ -42,17 +42,16 @@ void ResourceController::setup_routes() {
     });
 
 
-    CROW_ROUTE(_app, "/resources") 
-    ([this]() { 
-        auto allDto = _service.getAllResources(); 
-        std::vector<crow::json::wvalue> list; 
-
-        for (const auto& dto : allDto) {
-            list.push_back(dto.to_json()); 
-        } 
-
-        return crow::response(crow::json::wvalue(list)); 
-    }); 
+    CROW_ROUTE(_app, "/user/<int>/resources")
+    ([this](int userId) {
+        auto resources = _service.getResourcesByUserId(static_cast<uint64_t>(userId));
+        
+        std::vector<crow::json::wvalue> list;
+        for (const auto& r : resources) {
+            list.push_back(r.to_json());
+        }
+        return crow::json::wvalue(list);
+    });
 
 
     CROW_ROUTE(_app, "/resource/launch/<int>").methods(crow::HTTPMethod::POST) 

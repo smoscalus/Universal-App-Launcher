@@ -12,7 +12,7 @@ private:
 public:
     ResourceService(Engine::Database& db);
 
-    std::vector<DTO::ResourceDto> getAllResources();
+    std::vector<DTO::ResourceDto> getResourcesByUserId(uint64_t userId);
     DTO::ResourceDto getResourceById(uint64_t id);
     int createResource(const DTO::CreateResourceRequest& req);
     bool launchResource(uint64_t id);

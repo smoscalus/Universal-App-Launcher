@@ -33,22 +33,22 @@
     }
     }
 
-    std::vector<DTO::ResourceDto> ResourceService::getAllResources() {
-        std::vector<DTO::ResourceDto> allDto;
+    std::vector<DTO::ResourceDto> ResourceService::getResourcesByUserId(uint64_t userId) {
+        std::vector<DTO::ResourceDto> userResources;
 
         uint64_t limit = _table.quantity + 2; 
         for (uint64_t i = 0; i <= limit; ++i) {
             try {
                 dm::Resource res = _table.get(i);
 
-                if (res.name[0] != '\0') {
-                    allDto.push_back(ResourceMapper::to_dto(res, i));
+                if (res.name[0] != '\0' && res.user_id == userId) {
+                    userResources.push_back(ResourceMapper::to_dto(res, i));
                 }
             } catch (...) {
                 continue;
             }
         }
-        return allDto;
+        return userResources;
     }
 
     void ResourceService::deleteResource(uint64_t id) {
