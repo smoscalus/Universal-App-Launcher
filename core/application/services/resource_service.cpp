@@ -36,8 +36,7 @@
     std::vector<DTO::ResourceDto> ResourceService::getResourcesByUserId(uint64_t userId) {
         std::vector<DTO::ResourceDto> userResources;
 
-        uint64_t limit = _table.quantity + 2; 
-        for (uint64_t i = 0; i <= limit; ++i) {
+        for (uint64_t i = 1; i <= _table.quantity + 1; ++i) {
             try {
                 dm::Resource res = _table.get(i);
 
@@ -48,6 +47,7 @@
                 continue;
             }
         }
+        
         return userResources;
     }
 
