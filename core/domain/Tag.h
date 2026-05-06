@@ -8,7 +8,8 @@ namespace dm
     {
         char name[255];
         char description[1024];
+        uint64_t user_id;
     };
 
-    static_assert(sizeof(Tag) == 1280, "Tag size must be 1280 bytes");
+    static_assert(sizeof(Tag) == 1288, "Tag size must be 1288 bytes");
 }
