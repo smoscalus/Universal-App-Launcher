@@ -10,6 +10,7 @@ public:
     CategoryService(Engine::Database& db, UserService& userService);
 
     int createCategory(const DTO::CreateCategoryRequest& req);
+    DTO::CategoryDto updateCategory(uint64_t id, const DTO::CreateCategoryRequest& req);
     std::vector<DTO::CategoryDto> getCategoriesByUserId(uint64_t userId);
     void deleteCategory(uint64_t id);
 

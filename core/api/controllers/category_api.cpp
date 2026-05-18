@@ -27,6 +27,28 @@ void CategoryController::setup_routes() {
         return crow::response(201, res); 
     });
 
+    CROW_ROUTE(_app, "/category/<int>").methods(crow::HTTPMethod::PUT)
+    ([this]( const crow::request& req, int id) {
+        auto data = crow::json::load(req.body);
+        if (!data) return crow::response(400, "Invalid JSON"); 
+
+        DTO::CreateCategoryRequest updateReq;
+        updateReq.name = data["name"].s();
+        updateReq.description = data.has("description") ? std::string(data["description"].s()) : "";
+
+        if (!data.has("user_id")) return crow::response(400, "Missing user_id");
+        updateReq.user_id = data["user_id"].u();
+
+        try {
+            DTO::CategoryDto updateRes = _service.updateCategory(id, updateReq); 
+            return crow::response(200, updateRes.to_json());
+        } 
+        catch (const std::exception& e) {
+            std::cerr << "Category Error: " << e.what() << std::endl;
+            return crow::response(444, "Database error or category not found"); 
+        }
+    });
+
     CROW_ROUTE(_app, "/user/<int>/categories")
     ([this](int userId) {
         auto categories = _service.getCategoriesByUserId(static_cast<uint64_t>(userId));

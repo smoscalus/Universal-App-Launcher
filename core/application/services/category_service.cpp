@@ -19,6 +19,19 @@
         }
     }
 
+    DTO::CategoryDto CategoryService::updateCategory(uint64_t id, const DTO::CreateCategoryRequest& req)
+    {
+        dm::Category cat = CategoryMapper::to_domain(req, req.user_id);
+        bool status = _table.update(id, cat);
+
+        if (!status)
+        {
+            throw std::runtime_error("Category not found or update failed");
+        }
+
+        return CategoryMapper::to_dto(cat, id);
+    }
+
     std::vector<DTO::CategoryDto> CategoryService::getCategoriesByUserId(uint64_t userId) {
         std::vector<DTO::CategoryDto> userCategories;
 
