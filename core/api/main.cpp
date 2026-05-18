@@ -65,5 +65,5 @@ int main() {
     std::cout << "  Server: http://localhost:18080        " << std::endl;
     std::cout << "========================================" << std::endl;
 
-    app.port(18080).multithreaded().run();
+    app.port(18080).run();
 }
