@@ -76,7 +76,28 @@ namespace Engine
             return value;
         }
 
-        void remove(int id)
+        bool update(int id, const T& Obj)
+        {
+            uint64_t baseOffset = sizeof(Core::DbHeader) + (id - 1) * (sizeof(Core::RecordHeader) + sizeof(T));
+
+            std::fstream file(_workFile.get_path(), std::ios::binary | std::ios::in | std::ios::out);
+            if (!file.is_open()) throw std::runtime_error("File is missing");
+
+            file.seekg(baseOffset, std::ios::beg);
+            Core::RecordHeader header;
+            file.read(reinterpret_cast<char*>(&header), sizeof(header));
+
+            if (!file || header.id == 0 || header.isDeleted == 1) {
+                return false; 
+            }
+
+            file.seekp(baseOffset + sizeof(Core::RecordHeader), std::ios::beg);
+            file.write(reinterpret_cast<const char*>(&Obj), sizeof(T));
+
+            return file.good();
+        }
+
+        bool remove(int id)
         {
             uint64_t offset = sizeof(Core::DbHeader) + (id - 1) * (sizeof(Core::RecordHeader) + sizeof(T));
 
@@ -86,24 +107,23 @@ namespace Engine
             Core::RecordHeader header;
             file.read(reinterpret_cast<char *>(&header), sizeof(header));
 
-            if (!file)
-            {
-                throw std::runtime_error("File is broke");
-            }
+            if (!file) return false;
 
-            if (header.id == 0 || header.isDeleted == 1)
-            {
-                throw std::runtime_error("Record is broke");
+            if (header.id == 0 || header.isDeleted == 1) {
+                return false;
             }
 
             header.isDeleted = 1;
             file.seekp(offset, std::ios::beg);
             file.write(reinterpret_cast<char *>(&header), sizeof(header));
+            
+            return true;
         }
 
         void clear_database()
         {
             _workFile.create_file();
+            quantity = 0;
         }
     };
 }

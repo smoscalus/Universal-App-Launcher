@@ -22,6 +22,7 @@ namespace Engine
         Table<T> open_table(const char *table_name)
         {
             _workFile.set_size(sizeof(T));
+            _id.sync_from_file();
 
             std::string file_name_s = std::string(table_name) + ".hellnot";
             const char *file_name = file_name_s.c_str();
