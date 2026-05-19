@@ -31,10 +31,10 @@ std::vector<DTO::PresetDto> PresetService::getPresetsByUserId(uint64_t userId) {
     return userPresets;
 }
 
-DTO::CategoryDto PresetService::updatePreset(uint64_t id, const DTO::CreatePresetRequest& req)
+DTO::PresetDto PresetService::updatePreset(uint64_t id, const DTO::CreatePresetRequest& req)
 {
     dm::Preset preset = PresetMapper::to_domain(req, req.user_id);
-    bool status = _table.update(id, preset);
+    bool status = _presetTable.update(id, preset);
 
     if (!status)
     {

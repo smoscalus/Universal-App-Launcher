@@ -51,6 +51,20 @@
         return userResources;
     }
 
+    DTO::ResourceDto ResourceService::updateResource(uint64_t id, const DTO::CreateResourceRequest& req)
+    {
+        dm::Resource res = ResourceMapper::to_domain(req);
+        bool status = _table.update(id, res);
+
+        if (!status)
+        {
+            throw std::runtime_error("Resource not found or update failed");
+        }
+
+        return ResourceMapper::to_dto(res, id);
+    }
+
+
     void ResourceService::deleteResource(uint64_t id) {
         _table.remove(id);
     }

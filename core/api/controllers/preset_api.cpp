@@ -46,7 +46,7 @@ void PresetController::setup_routes() {
         updateReq.user_id = data.has("user_id") ? data["user_id"].u() : 0;
 
         try {
-            DTO::CategoryDto updateRes = _service.updatePresset(id, updateReq); 
+            DTO::PresetDto updateRes = _service.updatePreset(id, updateReq); 
             return crow::response(200, updateRes.to_json());
         } 
         catch (const std::exception& e) {

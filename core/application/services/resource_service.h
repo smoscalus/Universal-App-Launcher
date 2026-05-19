@@ -15,6 +15,7 @@ public:
     std::vector<DTO::ResourceDto> getResourcesByUserId(uint64_t userId);
     DTO::ResourceDto getResourceById(uint64_t id);
     int createResource(const DTO::CreateResourceRequest& req);
+    DTO::ResourceDto updateResource(uint64_t id, const DTO::CreateResourceRequest& req);
     bool launchResource(uint64_t id);
     void deleteResource(uint64_t id);
 };
