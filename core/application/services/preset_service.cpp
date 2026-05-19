@@ -31,6 +31,19 @@ std::vector<DTO::PresetDto> PresetService::getPresetsByUserId(uint64_t userId) {
     return userPresets;
 }
 
+DTO::CategoryDto PresetService::updatePreset(uint64_t id, const DTO::CreatePresetRequest& req)
+{
+    dm::Preset preset = PresetMapper::to_domain(req, req.user_id);
+    bool status = _table.update(id, preset);
+
+    if (!status)
+    {
+        throw std::runtime_error("Preset not found or update failed");
+    }
+
+    return PresetMapper::to_dto(preset, id);
+}
+
 void PresetService::deletePreset(uint64_t id) {
     try {
         _presetTable.remove(id);

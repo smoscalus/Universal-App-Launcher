@@ -35,6 +35,26 @@ void PresetController::setup_routes() {
         return crow::json::wvalue(list);
     });
 
+    CROW_ROUTE(_app, "/preset/<int>").methods(crow::HTTPMethod::PUT)
+    ([this]( const crow::request& req, int id) {
+        auto data = crow::json::load(req.body);
+        if (!data) return crow::response(400, "Invalid JSON");
+
+        DTO::CreatePresetRequest updateReq;
+        updateReq.name = data["name"].s();
+        updateReq.description = data.has("description") ? std::string(data["description"].s()) : "";
+        updateReq.user_id = data.has("user_id") ? data["user_id"].u() : 0;
+
+        try {
+            DTO::CategoryDto updateRes = _service.updatePresset(id, updateReq); 
+            return crow::response(200, updateRes.to_json());
+        } 
+        catch (const std::exception& e) {
+            std::cerr << "Preset Error: " << e.what() << std::endl;
+            return crow::response(444, "Database error or preset not found"); 
+        }
+    });
+
     CROW_ROUTE(_app, "/presets/<int>/resources/<int>").methods(crow::HTTPMethod::POST)
     ([this](int pId, int resId) {
         _service.addResourceToPreset(static_cast<uint64_t>(pId), static_cast<uint64_t>(resId));

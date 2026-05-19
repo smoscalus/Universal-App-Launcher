@@ -10,6 +10,7 @@ public:
     PresetService(Engine::Database& presetDb, Engine::Database& linkDb, ResourceService& resourceService);
 
     int createPreset(const DTO::CreatePresetRequest& req);
+    DTO::PresetDto updatePreset(uint64_t id, const DTO::CreatePresetRequest& req);
     std::vector<DTO::PresetDto> getPresetsByUserId(uint64_t userId);
     void deletePreset(uint64_t id);
 
