@@ -10,6 +10,7 @@ public:
     TagService(Engine::Database& tagDb, Engine::Database& linkDb);
 
     int createTag(const DTO::CreateTagRequest& req);
+    DTO::TagDto updateTag(uint64_t id, const DTO::CreateTagRequest& req);
     std::vector<DTO::TagDto> getTagsByUserId(uint64_t userId);
     void deleteTag(uint64_t id);
 

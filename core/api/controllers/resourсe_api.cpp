@@ -70,8 +70,8 @@ void ResourceController::setup_routes() {
             return crow::response(200, updateRes.to_json());
         }
         catch (const std::exception& e) {
-            std::cerr << "Preset Error: " << e.what() << std::endl;
-            return crow::response(444, "Database error or Resourve not found"); 
+            std::cerr << "Resource Error: " << e.what() << std::endl;
+            return crow::response(444, "Database error or Resource not found"); 
         }
     });
 

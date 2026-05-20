@@ -32,6 +32,19 @@ std::vector<DTO::TagDto> TagService::getTagsByUserId(uint64_t userId) {
     return userTags;
 }
 
+DTO::TagDto TagService::updateTag(uint64_t id, const DTO::CreateTagRequest& req)
+{
+    dm::Tag res = TagMapper::to_domain(req, req.user_id);
+    bool status = _tagTable.update(id, res);
+
+    if (!status)
+    {
+        throw std::runtime_error("Tag not found or update failed");
+    }
+
+    return TagMapper::to_dto(res, id);
+}
+
 void TagService::deleteTag(uint64_t id) {
     try {
         _tagTable.remove(id);
