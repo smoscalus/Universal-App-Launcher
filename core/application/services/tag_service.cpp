@@ -2,9 +2,10 @@
 #include "../mappers/tag_mapper.h"
 #include <iostream>
 
-TagService::TagService(Engine::Database& tagDb, Engine::Database& linkDb)
-    : _tagTable(tagDb.open_table<dm::Tag>("tags")),
-      _linkTable(linkDb.open_table<dm::ResourceTag>("resource_tags")) {}
+TagService::TagService(std::shared_ptr<DbContext> context)
+    : _context(context),
+    _tagTable(_context->tags.open_table<dm::Tag>("tags")),
+    _linkTable(_context->resource_tags.open_table<dm::ResourceTag>("resource_tags")) {}
 
 int TagService::createTag(const DTO::CreateTagRequest& req) {
     try {

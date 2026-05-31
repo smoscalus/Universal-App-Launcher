@@ -1,8 +1,9 @@
 #include "user_service.h"
 #include "../mappers/user_mapper.h"
 
-UserService::UserService(Engine::Database& db) 
-    : _table(db.open_table<dm::User>("users")) {}
+UserService::UserService(std::shared_ptr<DbContext> context) 
+    :  _context(context),
+    _table(_context->users.open_table<dm::User>("users")) {}
 
 DTO::UserDto UserService::getUserById(uint64_t id) {
     try {

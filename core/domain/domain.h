@@ -1,0 +1,7 @@
+#include "Category.h"
+#include "Preset.h"
+#include "PresetResource.h"
+#include "Resource.h"
+#include "ResourceTag.h"
+#include "Tag.h"
+#include "User.h"

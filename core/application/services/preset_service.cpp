@@ -1,11 +1,13 @@
 #include "preset_service.h"
 #include "../mappers/preset_mapper.h"
+#include "../domain/domain.h"
 #include <iostream>
 
-PresetService::PresetService(Engine::Database& presetDb, Engine::Database& linkDb, ResourceService& resourceService)
-    : _presetTable(presetDb.open_table<dm::Preset>("presets")),
-      _linkTable(linkDb.open_table<dm::PresetResource>("preset_resources")),
-      _resourceService(resourceService) {}
+PresetService::PresetService(std::shared_ptr<DbContext> context, ResourceService& resourceService)
+    :  _context(context),
+    _presetTable(_context->presets.open_table<dm::Preset>("presets")),
+    _linkTable(_context->preset_resources.open_table<dm::PresetResource>("preset_resources")),
+    _resourceService(resourceService) {}
 
 int PresetService::createPreset(const DTO::CreatePresetRequest& req) {
     try {

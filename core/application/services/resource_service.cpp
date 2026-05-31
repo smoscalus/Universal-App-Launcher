@@ -4,8 +4,9 @@
 #include <vector>
 #include <iostream>
 
-    ResourceService::ResourceService(Engine::Database& db) 
-        : _table(db.open_table<dm::Resource>("resources")) {}
+    ResourceService::ResourceService(std::shared_ptr<DbContext> context) 
+        : _context(context),
+        _table(_context->resources.open_table<dm::Resource>("resources")) {}
 
     int ResourceService::createResource(const DTO::CreateResourceRequest& req) {
         try {

@@ -2,9 +2,10 @@
 #include "../mappers/category_mapper.h"
 #include <iostream>
 
-    CategoryService::CategoryService(Engine::Database& db, UserService& userService)
-        : _table(db.open_table<dm::Category>("categories")),
-        _resourceTable(db.open_table<dm::Resource>("resources")),
+    CategoryService::CategoryService(std::shared_ptr<DbContext> context, UserService& userService)
+        : _context(context),
+        _table(context->categories.open_table<dm::Category>("categories")),
+        _resourceTable(context->resources.open_table<dm::Resource>("resources")),
         _userService(userService) {}
 
     int CategoryService::createCategory(const DTO::CreateCategoryRequest& req) {
@@ -51,21 +52,7 @@
 
     void CategoryService::deleteCategory(uint64_t id) {
         try {
-            for (uint64_t i = 0; i < _resourceTable.quantity; ++i) {
-                try {
-                    dm::Resource res = _resourceTable.get(i);
-                    
-                    if (res.name[0] != '\0' && res.category_id == id) {
-                        _resourceTable.remove(i);
-                        std::cout << "[DB] Resource " << i << " deleted (cascade from category " << id << ")" << std::endl;
-                    }
-                } catch (...) {
-                    continue;
-                }
-            }
-
-            _table.remove(id);
-
+            _context->delete_category_cascade(id);
             std::cout << "[DB] Category " << id << " and all its resources removed." << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "Category Delete Error: " << e.what() << std::endl;

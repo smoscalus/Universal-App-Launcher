@@ -1,13 +1,16 @@
 #pragma once
+
 #include "../../domain/Preset.h"
 #include "../../domain/PresetResource.h"
 #include "../dto/Preset.h"
+#include "../../infrastructure/persistence/db_context.h"
 #include "resource_service.h"
 #include <vector>
+#include <memory>
 
 class PresetService {
 public:
-    PresetService(Engine::Database& presetDb, Engine::Database& linkDb, ResourceService& resourceService);
+    PresetService(std::shared_ptr<DbContext> context, ResourceService& resourceService);
 
     int createPreset(const DTO::CreatePresetRequest& req);
     DTO::PresetDto updatePreset(uint64_t id, const DTO::CreatePresetRequest& req);
@@ -19,6 +22,7 @@ public:
     void runPreset(uint64_t presetId);
 
 private:
+    std::shared_ptr<DbContext> _context;
     Engine::Table<dm::Preset> _presetTable;
     Engine::Table<dm::PresetResource> _linkTable;
     ResourceService& _resourceService;

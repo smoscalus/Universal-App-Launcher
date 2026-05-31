@@ -14,7 +14,7 @@
 #include "../application/services/tag_service.h"
 #include "../application/services/preset_service.h"
 
-#include "../infrastructure/install/include/hellnah/Engine/Database.h" 
+#include "../infrastructure/persistence/db_context.h"
 
 int main() {
     crow::App<crow::CORSHandler> app;
@@ -24,20 +24,14 @@ int main() {
         fs::create_directory("hellnah");
     }
 
-    Engine::Database resourceDb("hellnah/resources.hellnot");
-    Engine::Database categoryDb("hellnah/categorys.hellnot");
-    Engine::Database userDb("hellnah/users.hellnot");
-    Engine::Database tagDb("hellnah/tags.hellnot");
-    Engine::Database resourceTagDb("hellnah/resource_tags.hellnot");
-    Engine::Database presetDb("hellnah/presets.hellnot");
-    Engine::Database presetResourceDb("hellnah/preset_resources.hellnot");
+    auto dbContext = std::make_shared<DbContext>("hellnah");
 
-    ResourceService resourceService(resourceDb);
-    UserService userService(userDb);
-    CategoryService categoryService(categoryDb, userService);
-    TagService tagService(tagDb, resourceTagDb);
-    PresetService presetService(presetDb, presetResourceDb, resourceService);
-    
+    ResourceService resourceService(dbContext);
+    UserService userService(dbContext);
+    CategoryService categoryService(dbContext, userService);
+    TagService tagService(dbContext);
+    PresetService presetService(dbContext, resourceService);
+
     ResourceController resourceApi(app, resourceService);
     CategoryController categoryApi(app, categoryService);
     UserController userApi(app, userService);
