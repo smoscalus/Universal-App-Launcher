@@ -24,6 +24,19 @@ file(GLOB_RECURSE SOURCES
 
 add_executable(launcher_server ${SOURCES})
 
+# --- ПІДКЛЮЧЕННЯ СИСТЕМНИХ БІБЛІОТЕК ДЛЯ WEBVIEW (LINUX) ---
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
+pkg_check_modules(WEBKIT REQUIRED webkit2gtk-4.0)
+
+# Указываем компилятору, где искать заголовочные файлы Webview, GTK и WebKit
+target_include_directories(launcher_server PRIVATE 
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/webview_sdk
+    ${GTK3_INCLUDE_DIRS}
+    ${WEBKIT_INCLUDE_DIRS}
+)
+# --- ---
+
 # --- ПІДКЛЮЧЕННЯ БІБЛІОТЕКИ HELL NAH ---
 
 # Вказуємо шлях до файлу .a на основі твого скриншоту
@@ -31,11 +44,13 @@ set(HELLNAH_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/core/infrastructure/install/li
 
 find_package(Threads REQUIRED)
 
-# Додаємо Threads та нашу статичну бібліотеку до лінкера
+# Додаємо Threads, системні бібліотеки Linux та нашу статичну бібліотеку до лінкера
 target_link_libraries(launcher_server PRIVATE 
     Threads::Threads
     ${HELLNAH_LIB_PATH}
-    dl # Потрібно для Crow/Linux
+    ${GTK3_LIBRARIES}     # Линкуем GTK
+    ${WEBKIT_LIBRARIES}   # Линкуем WebKit
+    dl                     # Потрібно для Crow/Linux
 )
 
 # --- ---

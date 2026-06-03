@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universal App Launcher & Manager</title>
+    <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+    <header class="window-bar">
+        <div class="window-controls-group">
+            <button class="preset-btn">
+                <span class="preset-icon"></span>
+                <span class="preset-text">Name User preset</span>
+            </button>
+
+            <div class="window-actions">
+                <button class="win-btn" id="win-minimize">
+                    <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <line y1="1" x2="12" y2="1" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+                <button class="win-btn" id="win-maximize">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="2" fill="none"/>
+                    </svg>
+                </button>
+                <button class="win-btn" id="win-close">
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <aside class="sidebar">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Поиск...">
+            </div>
+            
+            <nav class="sidebar-collections" id="sidebar-collections-list">
+                </nav>
+
+            <div class="sidebar-footer">
+                <button class="btn btn-secondary" id="btn-download">Download file</button>
+                <button class="btn btn-primary" id="btn-add-collection">Add collection</button>
+            </div>
+        </aside>
+
+        <main class="content-area">
+            <header class="tabs-header" id="tabs-container">
+                </header>
+
+            <div class="content-body" id="content-body">
+                
+                <div class="empty-state" id="empty-state">
+                    <p>You don’t have any collections yet. Click “Create” in the bottom-left to add your first one.</p>
+                </div>
+
+                <div class="grid-container" id="grid-container" style="display: none;">
+                    </div>
+
+            </div>
+
+            <footer class="content-footer">
+                <div class="nav-arrows">
+                    <button class="arrow-btn" id="prev-btn">←</button>
+                    <button class="arrow-btn" id="next-btn">→</button>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <div class="login-overlay" id="login-overlay">
+        <div class="login-card">
+            <h2>Log in to your profile</h2>
+            <p>Enter your profile details</p>
+            <form id="login-form">
+                <div class="input-group">
+                    <input type="text" id="login-name" placeholder="Имя пользователя (напр. Ivan)" required>
+                </div>
+                <button type="submit" class="btn btn-primary login-submit-btn">Sign in</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

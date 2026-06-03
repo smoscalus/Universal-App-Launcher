@@ -13,6 +13,7 @@ public:
 
     DTO::UserDto getUserById(uint64_t id);
     int createUser(const DTO::CreateUserRequest& req);
+    bool existsByUsername(const std::string& name);
     void deleteUser(uint64_t id);
 private:
     std::shared_ptr<DbContext> _context;
