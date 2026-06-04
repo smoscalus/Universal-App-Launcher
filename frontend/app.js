@@ -115,6 +115,27 @@ const apiService = {
         }
     },
 
+    async updateResource(resourceId, name, path, categoryId, userId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/resource/${resourceId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: name,
+                    description: "",
+                    path: path,
+                    category_id: categoryId,
+                    user_id: userId
+                })
+            });
+            if (!response.ok) throw new Error('Ошибка при обновлении ресурса');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error (updateResource):', error);
+            throw error;
+        }
+    },
+
     async launchResource(resourceId) {
         try {
             const response = await fetch(`${API_BASE_URL}/resource/launch/${resourceId}`, {
@@ -146,7 +167,8 @@ let appState = {
     currentUser: null,       
     categories: [],          
     resources: [],
-    activeCategoryId: null   
+    activeCategoryId: null,
+    selectedResource: null
 };
 
 const loginOverlay = document.getElementById('login-overlay');
@@ -159,6 +181,15 @@ const sidebarListEl = document.getElementById('sidebar-collections-list');
 const emptyStateEl = document.getElementById('empty-state');
 const gridContainerEl = document.getElementById('grid-container');
 const tabsContainer = document.getElementById('tabs-container');
+const contentBodyEl = document.getElementById('content-body');
+
+const resourceModal = document.getElementById('resource-modal');
+const resourceModalForm = document.getElementById('resource-modal-form');
+const modalResName = document.getElementById('modal-resource-name');
+const modalResPath = document.getElementById('modal-resource-path');
+const btnModalCancel = document.getElementById('btn-modal-cancel');
+const btnModalDelete = document.getElementById('btn-modal-delete');
+const btnModalLaunch = document.getElementById('btn-modal-launch');
 
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -340,7 +371,7 @@ function renderSidebar() {
                     <div style="width: 16px; height: 16px; background: #59616e; border-radius: 3px;"></div>
                     <span>${res.name}</span>
                 `;
-                leftContent.addEventListener('click', () => apiService.launchResource(res.id));
+                leftContent.addEventListener('click', () => openResourceModal(res));
                 subItem.appendChild(leftContent);
 
                 const delResBtn = document.createElement('span');
@@ -432,25 +463,87 @@ function selectCategory(id) {
         card.innerHTML = `
             <div class="card-preview"></div>
             <div class="card-title">${res.name}</div>
-            <button class="win-btn" class="delete-card-btn" style="position: absolute; top: 8px; right: 8px; width: 24px; height: 24px; display: none; line-height: 20px; font-size: 14px; background: rgba(40,48,61,0.8);">×</button>
         `;
 
-        card.addEventListener('click', () => apiService.launchResource(res.id));
-        
-        const delBtn = card.querySelector('button');
-        card.addEventListener('mouseenter', () => delBtn.style.display = 'flex');
-        card.addEventListener('mouseleave', () => delBtn.style.display = 'none');
-        
-        delBtn.addEventListener('click', async (e) => {
-            e.stopPropagation();
-            if (confirm(`Удалить ${res.name}?`)) {
-                await apiService.deleteResource(res.id);
-                await loadDashboard();
-            }
-        });
-
+        card.addEventListener('click', () => openResourceModal(res));
         gridContainerEl.appendChild(card);
     });
+}
+
+function openResourceModal(resource) {
+    appState.selectedResource = resource;
+    modalResName.value = resource.name;
+    modalResPath.value = resource.path;
+    resourceModal.style.display = 'flex';
+}
+
+function closeResourceModal() {
+    resourceModal.style.display = 'none';
+    appState.selectedResource = null;
+}
+
+btnModalCancel.addEventListener('click', closeResourceModal);
+
+btnModalLaunch.addEventListener('click', async () => {
+    if (!appState.selectedResource) return;
+    try {
+        await apiService.launchResource(appState.selectedResource.id);
+        closeResourceModal();
+    } catch (err) {
+        alert('Не удалось запустить ресурс');
+    }
+});
+
+btnModalDelete.addEventListener('click', async () => {
+    if (!appState.selectedResource) return;
+    if (confirm(`Удалить ${appState.selectedResource.name}?`)) {
+        try {
+            await apiService.deleteResource(appState.selectedResource.id);
+            closeResourceModal();
+            await loadDashboard();
+        } catch (err) {
+            alert('Ошибка при удалении');
+        }
+    }
+});
+
+resourceModalForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!appState.selectedResource) return;
+
+    const name = modalResName.value.trim();
+    const path = modalResPath.value.trim();
+
+    try {
+        await apiService.updateResource(
+            appState.selectedResource.id,
+            name,
+            path,
+            appState.selectedResource.category_id,
+            appState.currentUser.id
+        );
+        closeResourceModal();
+        await loadDashboard();
+    } catch (err) {
+        alert('Не удалось обновить данные ресурса');
+    }
+});
+
+async function handleAddResourceAction() {
+    if (!appState.currentUser || !appState.activeCategoryId) return alert('Выберите категорию для добавления ресурса!');
+    
+    const name = prompt('Введите название программы/ссылки:');
+    if (!name) return;
+    
+    const path = prompt('Введите путь к файлу или URL ссылку:');
+    if (!path) return;
+
+    try {
+        await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
+        await loadDashboard();
+    } catch (error) {
+        alert('Не удалось добавить ресурс');
+    }
 }
 
 document.getElementById('btn-add-collection').addEventListener('click', async () => {
@@ -467,19 +560,36 @@ document.getElementById('btn-add-collection').addEventListener('click', async ()
     }
 });
 
-document.getElementById('btn-download').addEventListener('click', async () => {
-    if (!appState.currentUser || !appState.activeCategoryId) return alert('Выберите категорию для добавления ресурса!');
-    
-    const name = prompt('Введите название программы/ссылки:');
-    if (!name) return;
-    
-    const path = prompt('Введите путь к файлу или URL ссылку:');
-    if (!path) return;
+document.getElementById('btn-download').addEventListener('click', handleAddResourceAction);
 
-    try {
-        await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
-        await loadDashboard();
-    } catch (error) {
-        alert('Не удалось добавить ресурс');
+document.getElementById('content-body').addEventListener('click', (e) => {
+    if (e.target && e.target.id === 'btn-empty-add-resource') {
+        handleAddResourceAction();
+    }
+});
+
+contentBodyEl.addEventListener('dragover', (e) => {
+    e.preventDefault();
+});
+
+contentBodyEl.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    if (!appState.currentUser || !appState.activeCategoryId) return;
+    
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+        const file = files[0];
+        const name = file.name.split('.').slice(0, -1).join('.') || file.name;
+        const path = file.path || file.name;
+        
+        const confirmDrop = confirm(`Добавить обнаруженный файл "${name}" в текущую коллекцию?`);
+        if (!confirmDrop) return;
+        
+        try {
+            await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
+            await loadDashboard();
+        } catch (error) {
+            alert('Не удалось сохранить перетащенный файл');
+        }
     }
 });
