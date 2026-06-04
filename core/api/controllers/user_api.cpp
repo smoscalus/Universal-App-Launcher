@@ -7,18 +7,18 @@ void UserController::setup_routes() {
     CROW_ROUTE(_app, "/user/<int>")
     ([this](int id) {
         auto userDto = _service.getUserById(static_cast<uint64_t>(id));
-        
+
         if (userDto.name == "Guest" && userDto.created_at == 0) {
             return crow::response(404, "User not found");
         }
-        
+
         return crow::response(userDto.to_json());
     });
 
     CROW_ROUTE(_app, "/users")
     ([this]() {
         auto users = _service.getAllUsers();
-        
+
         crow::json::wvalue res = crow::json::wvalue::list();
         int index = 0;
         for (const auto& user : users) {
@@ -44,7 +44,7 @@ void UserController::setup_routes() {
         createReq.avatar_url = data.has("avatar_url") ? std::string(data["avatar_url"].s()) : "";
 
         int userId = _service.createUser(createReq);
-        
+
         if (userId > 0) {
             crow::json::wvalue res;
             res["id"] = userId;
