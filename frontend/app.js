@@ -4,7 +4,7 @@ const apiService = {
     async getUsers() {
         try {
             const response = await fetch(`${API_BASE_URL}/users`);
-            if (!response.ok) throw new Error('Не удалось загрузить пользователей');
+            if (!response.ok) throw new Error('Failed to fetch users');
             return await response.json();
         } catch (error) {
             console.error('API Error (getUsers):', error);
@@ -19,7 +19,7 @@ const apiService = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: name, avatar_url: "" })
             });
-            if (!response.ok) throw new Error('Ошибка при логине');
+            if (!response.ok) throw new Error('Login failed');
             return await response.json();
         } catch (error) {
             console.error('API Error (loginUser):', error);
@@ -32,7 +32,7 @@ const apiService = {
             const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
                 method: 'DELETE'
             });
-            if (!response.ok) throw new Error('Не удалось удалить пользователя');
+            if (!response.ok) throw new Error('Delete user failed');
             return true;
         } catch (error) {
             console.error('API Error (deleteUser):', error);
@@ -43,7 +43,7 @@ const apiService = {
     async getCategories(userId) {
         try {
             const response = await fetch(`${API_BASE_URL}/user/${userId}/categories`);
-            if (!response.ok) throw new Error('Не удалось загрузить категории');
+            if (!response.ok) throw new Error('Failed to fetch categories');
             return await response.json(); 
         } catch (error) {
             console.error('API Error (getCategories):', error);
@@ -58,11 +58,11 @@ const apiService = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
-                    description: "Создано из Universal Manager",
+                    description: "Created from Universal Manager",
                     user_id: userId
                 })
             });
-            if (!response.ok) throw new Error('Ошибка при создании категории');
+            if (!response.ok) throw new Error('Create category failed');
             return await response.json();
         } catch (error) {
             console.error('API Error (createCategory):', error);
@@ -75,7 +75,7 @@ const apiService = {
             const response = await fetch(`${API_BASE_URL}/category/${categoryId}`, {
                 method: 'DELETE'
             });
-            if (!response.ok) throw new Error('Ошибка при удалении категории');
+            if (!response.ok) throw new Error('Delete category failed');
             return true;
         } catch (error) {
             console.error('API Error (deleteCategory):', error);
@@ -86,7 +86,7 @@ const apiService = {
     async getResources(userId) {
         try {
             const response = await fetch(`${API_BASE_URL}/user/${userId}/resources`);
-            if (!response.ok) throw new Error('Не удалось загрузить ресурсы');
+            if (!response.ok) throw new Error('Failed to fetch resources');
             return await response.json();
         } catch (error) {
             console.error('API Error (getResources):', error);
@@ -107,7 +107,7 @@ const apiService = {
                     user_id: userId
                 })
             });
-            if (!response.ok) throw new Error('Ошибка при создании ресурса');
+            if (!response.ok) throw new Error('Create resource failed');
             return await response.json();
         } catch (error) {
             console.error('API Error (createResource):', error);
@@ -115,20 +115,20 @@ const apiService = {
         }
     },
 
-    async updateResource(resourceId, name, path, categoryId, userId) {
+    async updateResource(resourceId, name, path, description, categoryId, userId) {
         try {
             const response = await fetch(`${API_BASE_URL}/resource/${resourceId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
-                    description: "",
+                    description: description, // Добавлено поле description в PUT
                     path: path,
                     category_id: categoryId,
                     user_id: userId
                 })
             });
-            if (!response.ok) throw new Error('Ошибка при обновлении ресурса');
+            if (!response.ok) throw new Error('Update resource failed');
             return await response.json();
         } catch (error) {
             console.error('API Error (updateResource):', error);
@@ -141,7 +141,7 @@ const apiService = {
             const response = await fetch(`${API_BASE_URL}/resource/launch/${resourceId}`, {
                 method: 'POST'
             });
-            if (!response.ok) throw new Error('Не удалось запустить ресурс');
+            if (!response.ok) throw new Error('Launch resource failed');
             return true;
         } catch (error) {
             console.error('API Error (launchResource):', error);
@@ -154,7 +154,7 @@ const apiService = {
             const response = await fetch(`${API_BASE_URL}/resource/${resourceId}`, {
                 method: 'DELETE'
             });
-            if (!response.ok) throw new Error('Ошибка при удалении ресурса');
+            if (!response.ok) throw new Error('Delete resource failed');
             return true;
         } catch (error) {
             console.error('API Error (deleteResource):', error);
@@ -183,86 +183,94 @@ const gridContainerEl = document.getElementById('grid-container');
 const tabsContainer = document.getElementById('tabs-container');
 const contentBodyEl = document.getElementById('content-body');
 
-const resourceModal = document.getElementById('resource-modal');
-const resourceModalForm = document.getElementById('resource-modal-form');
-const modalResName = document.getElementById('modal-resource-name');
-const modalResPath = document.getElementById('modal-resource-path');
-const btnModalCancel = document.getElementById('btn-modal-cancel');
-const btnModalDelete = document.getElementById('btn-modal-delete');
-const btnModalLaunch = document.getElementById('btn-modal-launch');
+const detailArea = document.getElementById('detail-area');
+const inputDetailName = document.getElementById('input-detail-name');
+const inputDetailPath = document.getElementById('input-detail-path');
+const inputDetailDescription = document.getElementById('input-detail-description'); // Новое поле Description
+const btnDetailDelete = document.getElementById('btn-detail-delete');
+const btnDetailRun = document.getElementById('btn-detail-run');
+const btnDetailSave = document.getElementById('btn-detail-save');
 
-loginForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const nameInput = document.getElementById('login-name');
-    const name = nameInput.value.trim();
+if (loginForm) {
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const nameInput = document.getElementById('login-name');
+        const name = nameInput.value.trim();
 
-    try {
-        const currentUsers = await apiService.getUsers();
-        const userExists = currentUsers.some(u => u.name.toLowerCase() === name.toLowerCase());
+        try {
+            const currentUsers = await apiService.getUsers();
+            const userExists = currentUsers.some(u => u.name.toLowerCase() === name.toLowerCase());
 
-        if (!userExists) {
-            const confirmCreation = confirm(`Пользователь "${name}" не найден. Создать новый профиль?`);
-            if (!confirmCreation) return;
+            if (!userExists) {
+                const confirmCreation = confirm(`Пользователь "${name}" не найден. Создать новый профиль?`);
+                if (!confirmCreation) return;
+            }
+
+            const userData = await apiService.loginUser(name);
+            await setCurrentUser(userData);
+            if (loginOverlay) loginOverlay.style.display = 'none';
+            nameInput.value = '';
+        } catch (err) {
+            alert('Не удалось подключиться к бэкенду. Проверь, запущен ли сервер.');
         }
+    });
+}
 
-        const userData = await apiService.loginUser(name);
-        await setCurrentUser(userData);
-        loginOverlay.style.display = 'none';
-        nameInput.value = '';
-    } catch (err) {
-        alert('Не удалось подключиться к бэкенду. Проверь, запущен ли сервер.');
-    }
-});
+if (userSelectEl) {
+    userSelectEl.addEventListener('change', async (e) => {
+        const selectedId = e.target.value;
+        const selectedName = e.target.options[e.target.selectedIndex].text;
+        appState.activeCategoryId = null; 
+        closeDetailArea();
+        await setCurrentUser({ id: parseInt(selectedId), name: selectedName });
+    });
+}
 
-userSelectEl.addEventListener('change', async (e) => {
-    const selectedId = e.target.value;
-    const selectedName = e.target.options[e.target.selectedIndex].text;
-    
-    appState.activeCategoryId = null; 
-    await setCurrentUser({ id: parseInt(selectedId), name: selectedName });
-});
+if (btnAddUser) {
+    btnAddUser.addEventListener('click', () => {
+        if (loginOverlay) loginOverlay.style.display = 'flex';
+        const loginNameEl = document.getElementById('login-name');
+        if (loginNameEl) loginNameEl.focus();
+    });
+}
 
-btnAddUser.addEventListener('click', () => {
-    loginOverlay.style.display = 'flex';
-    document.getElementById('login-name').focus();
-});
+if (btnDeleteUser) {
+    btnDeleteUser.addEventListener('click', async () => {
+        if (!appState.currentUser || !appState.currentUser.id) return;
+        if (!confirm(`Delete profile "${appState.currentUser.name}"?`)) return;
 
-btnDeleteUser.addEventListener('click', async () => {
-    if (!appState.currentUser || !appState.currentUser.id) return;
-
-    const confirmDelete = confirm(`Вы уверены, что хотите удалить профиль "${appState.currentUser.name}"?`);
-    if (!confirmDelete) return;
-
-    try {
-        await apiService.deleteUser(appState.currentUser.id);
-
-        const remainingUsers = await apiService.getUsers();
-        if (remainingUsers.length > 0) {
-            await setCurrentUser(remainingUsers[0]);
-        } else {
-            appState.currentUser = null;
-            userControlsContainer.style.display = 'none';
-            loginOverlay.style.display = 'flex';
+        try {
+            await apiService.deleteUser(appState.currentUser.id);
+            const remainingUsers = await apiService.getUsers();
+            closeDetailArea();
+            if (remainingUsers.length > 0) {
+                await setCurrentUser(remainingUsers[0]);
+            } else {
+                appState.currentUser = null;
+                if (userControlsContainer) userControlsContainer.style.display = 'none';
+                if (loginOverlay) loginOverlay.style.display = 'flex';
+            }
+        } catch (err) {
+            alert('Error deleting user');
         }
-    } catch (err) {
-        alert('Ошибка при удалении пользователя.');
-    }
-});
+    });
+}
 
 async function setCurrentUser(user) {
     appState.currentUser = user;
-    userControlsContainer.style.display = 'flex';
+    if (userControlsContainer) userControlsContainer.style.display = 'flex';
     
     const allUsers = await apiService.getUsers();
-    
-    userSelectEl.innerHTML = '';
-    allUsers.forEach(u => {
-        const opt = document.createElement('option');
-        opt.value = u.id;
-        opt.textContent = u.name;
-        if (u.id === user.id) opt.selected = true;
-        userSelectEl.appendChild(opt);
-    });
+    if (userSelectEl) {
+        userSelectEl.innerHTML = '';
+        allUsers.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.id;
+            opt.textContent = u.name;
+            if (u.id === user.id) opt.selected = true;
+            userSelectEl.appendChild(opt);
+        });
+    }
 
     await loadDashboard();
 }
@@ -294,6 +302,7 @@ async function loadDashboard() {
 function showEmptyState() {
     emptyStateEl.style.display = 'block';
     gridContainerEl.style.display = 'none';
+    closeDetailArea();
 }
 
 function showGrid() {
@@ -303,7 +312,6 @@ function showGrid() {
 
 function renderSidebar() {
     sidebarListEl.innerHTML = '';
-    
     appState.categories.forEach(cat => {
         const groupWrapper = document.createElement('div');
         groupWrapper.style.marginBottom = '15px';
@@ -335,22 +343,19 @@ function renderSidebar() {
         deleteBtn.style.cursor = 'pointer';
         deleteBtn.style.fontSize = '16px';
         deleteBtn.style.padding = '0 4px';
-        deleteBtn.title = 'Удалить категорию';
         
         deleteBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (confirm(`Удалить категорию "${cat.name}" и все её ресурсы?`)) {
+            if (confirm(`Delete category "${cat.name}"?`)) {
                 await apiService.deleteCategory(cat.id);
                 if (appState.activeCategoryId === cat.id) appState.activeCategoryId = null;
                 await loadDashboard();
             }
         });
         header.appendChild(deleteBtn);
-
         groupWrapper.appendChild(header);
 
         const itemsList = document.createElement('div');
-        
         if (cat.id === appState.activeCategoryId) {
             const filtered = appState.resources.filter(r => r.category_id === cat.id);
             filtered.forEach(res => {
@@ -371,7 +376,8 @@ function renderSidebar() {
                     <div style="width: 16px; height: 16px; background: #59616e; border-radius: 3px;"></div>
                     <span>${res.name}</span>
                 `;
-                leftContent.addEventListener('click', () => openResourceModal(res));
+                // Клик на название в сайдбаре открывает эдит
+                leftContent.addEventListener('click', () => showResourceDetails(res));
                 subItem.appendChild(leftContent);
 
                 const delResBtn = document.createElement('span');
@@ -380,17 +386,16 @@ function renderSidebar() {
                 delResBtn.style.color = 'var(--text-muted)';
                 delResBtn.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    if (confirm(`Удалить ${res.name}?`)) {
+                    if (confirm(`Delete ${res.name}?`)) {
                         await apiService.deleteResource(res.id);
+                        if (appState.selectedResource && appState.selectedResource.id === res.id) closeDetailArea();
                         await loadDashboard();
                     }
                 });
                 subItem.appendChild(delResBtn);
-
                 itemsList.appendChild(subItem);
             });
         }
-
         groupWrapper.appendChild(itemsList);
         sidebarListEl.appendChild(groupWrapper);
     });
@@ -400,7 +405,6 @@ function renderTabs() {
     tabsContainer.innerHTML = '';
     appState.categories.forEach(cat => {
         const tab = document.createElement('div');
-        
         tab.style.display = "flex";
         tab.style.alignItems = "center";
         tab.style.gap = "8px";
@@ -427,26 +431,24 @@ function renderTabs() {
         closeTabBtn.style.fontSize = '14px';
         closeTabBtn.addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (confirm(`Удалить категорию "${cat.name}"?`)) {
+            if (confirm(`Delete category "${cat.name}"?`)) {
                 await apiService.deleteCategory(cat.id);
                 if (appState.activeCategoryId === cat.id) appState.activeCategoryId = null;
                 await loadDashboard();
             }
         });
         tab.appendChild(closeTabBtn);
-
         tabsContainer.appendChild(tab);
     });
 }
 
 function selectCategory(id) {
     appState.activeCategoryId = id;
-    
     renderSidebar();
     renderTabs();
+    closeDetailArea();
     
     gridContainerEl.innerHTML = '';
-    
     const filtered = appState.resources.filter(r => r.category_id === id);
     
     if (filtered.length === 0) {
@@ -458,138 +460,144 @@ function selectCategory(id) {
     filtered.forEach(res => {
         const card = document.createElement('div');
         card.classList.add('card');
-        card.style.position = 'relative';
-        
         card.innerHTML = `
             <div class="card-preview"></div>
             <div class="card-title">${res.name}</div>
         `;
-
-        card.addEventListener('click', () => openResourceModal(res));
+        card.addEventListener('click', () => showResourceDetails(res));
         gridContainerEl.appendChild(card);
     });
 }
 
-function openResourceModal(resource) {
+function showResourceDetails(resource) {
     appState.selectedResource = resource;
-    modalResName.value = resource.name;
-    modalResPath.value = resource.path;
-    resourceModal.style.display = 'flex';
+    if (inputDetailName) inputDetailName.value = resource.name;
+    if (inputDetailPath) inputDetailPath.value = resource.path;
+    // Заполняем поле description
+    if (inputDetailDescription) inputDetailDescription.value = resource.description || ''; 
+    if (detailArea) detailArea.style.display = 'block';
+    if (gridContainerEl) gridContainerEl.style.display = 'none';
 }
 
-function closeResourceModal() {
-    resourceModal.style.display = 'none';
+function closeDetailArea() {
+    if (detailArea) detailArea.style.display = 'none';
     appState.selectedResource = null;
+    if (appState.activeCategoryId && appState.resources.filter(r => r.category_id === appState.activeCategoryId).length > 0) {
+        if (gridContainerEl) gridContainerEl.style.display = 'grid';
+    }
 }
 
-btnModalCancel.addEventListener('click', closeResourceModal);
+if (btnDetailRun) {
+    btnDetailRun.addEventListener('click', async () => {
+        if (!appState.selectedResource) return;
+        try {
+            await apiService.launchResource(appState.selectedResource.id);
+        } catch (err) {
+            alert('Launch failed');
+        }
+    });
+}
 
-btnModalLaunch.addEventListener('click', async () => {
-    if (!appState.selectedResource) return;
-    try {
-        await apiService.launchResource(appState.selectedResource.id);
-        closeResourceModal();
-    } catch (err) {
-        alert('Не удалось запустить ресурс');
-    }
-});
-
-btnModalDelete.addEventListener('click', async () => {
-    if (!appState.selectedResource) return;
-    if (confirm(`Удалить ${appState.selectedResource.name}?`)) {
+if (btnDetailDelete) {
+    btnDetailDelete.addEventListener('click', async () => {
+        if (!appState.selectedResource) return;
+        if (!confirm(`Delete ${appState.selectedResource.name}?`)) return;
         try {
             await apiService.deleteResource(appState.selectedResource.id);
-            closeResourceModal();
+            closeDetailArea();
             await loadDashboard();
         } catch (err) {
-            alert('Ошибка при удалении');
+            alert('Delete failed');
         }
-    }
-});
+    });
+}
 
-resourceModalForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!appState.selectedResource) return;
+if (btnDetailSave) {
+    btnDetailSave.addEventListener('click', async () => {
+        if (!appState.selectedResource) return;
+        const name = inputDetailName.value.trim();
+        const path = inputDetailPath.value.trim();
+        const description = inputDetailDescription.value.trim(); // Получаем описание
+        if (!name || !path) return;
 
-    const name = modalResName.value.trim();
-    const path = modalResPath.value.trim();
-
-    try {
-        await apiService.updateResource(
-            appState.selectedResource.id,
-            name,
-            path,
-            appState.selectedResource.category_id,
-            appState.currentUser.id
-        );
-        closeResourceModal();
-        await loadDashboard();
-    } catch (err) {
-        alert('Не удалось обновить данные ресурса');
-    }
-});
+        try {
+            await apiService.updateResource(
+                appState.selectedResource.id,
+                name,
+                path,
+                description, // Передаем описание
+                appState.selectedResource.category_id,
+                appState.currentUser.id
+            );
+            closeDetailArea();
+            await loadDashboard();
+        } catch (err) {
+            alert('Update failed');
+        }
+    });
+}
 
 async function handleAddResourceAction() {
-    if (!appState.currentUser || !appState.activeCategoryId) return alert('Выберите категорию для добавления ресурса!');
+    if (!appState.currentUser || !appState.activeCategoryId) return alert('Select category first!');
     
-    const name = prompt('Введите название программы/ссылки:');
+    const name = prompt('Resource Name:');
     if (!name) return;
-    
-    const path = prompt('Введите путь к файлу или URL ссылку:');
+    const path = prompt('Path or URL:');
     if (!path) return;
 
     try {
         await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
         await loadDashboard();
     } catch (error) {
-        alert('Не удалось добавить ресурс');
+        alert('Failed to add resource');
     }
 }
 
-document.getElementById('btn-add-collection').addEventListener('click', async () => {
-    if (!appState.currentUser) return alert('Сначала авторизуйтесь!');
-    
-    const name = prompt('Введите название новой категории:');
-    if (!name) return;
+const btnAddCollection = document.getElementById('btn-add-collection');
+if (btnAddCollection) {
+    btnAddCollection.addEventListener('click', async () => {
+        if (!appState.currentUser) return alert('No user authorized');
+        const name = prompt('New category name:');
+        if (!name) return;
 
-    try {
-        await apiService.createCategory(name, appState.currentUser.id);
-        await loadDashboard();
-    } catch (error) {
-        alert('Не удалось создать категорию');
-    }
-});
-
-document.getElementById('btn-download').addEventListener('click', handleAddResourceAction);
-
-document.getElementById('content-body').addEventListener('click', (e) => {
-    if (e.target && e.target.id === 'btn-empty-add-resource') {
-        handleAddResourceAction();
-    }
-});
-
-contentBodyEl.addEventListener('dragover', (e) => {
-    e.preventDefault();
-});
-
-contentBodyEl.addEventListener('drop', async (e) => {
-    e.preventDefault();
-    if (!appState.currentUser || !appState.activeCategoryId) return;
-    
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        const file = files[0];
-        const name = file.name.split('.').slice(0, -1).join('.') || file.name;
-        const path = file.path || file.name;
-        
-        const confirmDrop = confirm(`Добавить обнаруженный файл "${name}" в текущую коллекцию?`);
-        if (!confirmDrop) return;
-        
         try {
-            await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
+            await apiService.createCategory(name, appState.currentUser.id);
             await loadDashboard();
         } catch (error) {
-            alert('Не удалось сохранить перетащенный файл');
+            alert('Failed to create category');
         }
-    }
-});
+    });
+}
+
+const btnDownload = document.getElementById('btn-download');
+if (btnDownload) btnDownload.addEventListener('click', handleAddResourceAction);
+
+if (contentBodyEl) {
+    contentBodyEl.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'btn-empty-add-resource') {
+            handleAddResourceAction();
+        }
+    });
+
+    contentBodyEl.addEventListener('dragover', (e) => e.preventDefault());
+    contentBodyEl.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        if (!appState.currentUser || !appState.activeCategoryId) return;
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            const name = file.name.split('.').slice(0, -1).join('.') || file.name;
+            const path = file.path || file.name;
+            
+            if (confirm(`Add file "${name}" to collection?`)) {
+                try {
+                    await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
+                    await loadDashboard();
+                } catch (error) {
+                    alert('Drop failed');
+                }
+            }
+        }
+    });
+}
