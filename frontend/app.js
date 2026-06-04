@@ -1,6 +1,17 @@
 const API_BASE_URL = 'http://localhost:18080';
 
 const apiService = {
+    async getUsers() {
+        try {
+            const response = await fetch(`${API_BASE_URL}/users`);
+            if (!response.ok) throw new Error('Не удалось загрузить пользователей');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error (getUsers):', error);
+            return [];
+        }
+    },
+
     async loginUser(name) { 
         try {
             const response = await fetch(`${API_BASE_URL}/user`, {
@@ -8,13 +19,23 @@ const apiService = {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: name, avatar_url: "" })
             });
-
-            if (response.status === 409) throw new Error('Это имя уже занято');
             if (!response.ok) throw new Error('Ошибка при логине');
-            
             return await response.json();
         } catch (error) {
             console.error('API Error (loginUser):', error);
+            throw error;
+        }
+    },
+
+    async deleteUser(userId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/user/${userId}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Не удалось удалить пользователя');
+            return true;
+        } catch (error) {
+            console.error('API Error (deleteUser):', error);
             throw error;
         }
     },
@@ -58,7 +79,10 @@ let appState = {
 
 const loginOverlay = document.getElementById('login-overlay');
 const loginForm = document.getElementById('login-form');
-const presetTextEl = document.querySelector('.preset-text');
+const userControlsContainer = document.getElementById('user-controls-container');
+const userSelectEl = document.getElementById('user-select');
+const btnAddUser = document.getElementById('btn-add-user');
+const btnDeleteUser = document.getElementById('btn-delete-user');
 const sidebarListEl = document.getElementById('sidebar-collections-list');
 const emptyStateEl = document.getElementById('empty-state');
 const gridContainerEl = document.getElementById('grid-container');
@@ -66,20 +90,79 @@ const tabsContainer = document.getElementById('tabs-container');
 
 loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const name = document.getElementById('login-name').value.trim();
+    const nameInput = document.getElementById('login-name');
+    const name = nameInput.value.trim();
 
     try {
+        const currentUsers = await apiService.getUsers();
+        const userExists = currentUsers.some(u => u.name.toLowerCase() === name.toLowerCase());
+
+        if (!userExists) {
+            const confirmCreation = confirm(`Пользователь "${name}" не найден. Создать новый профиль?`);
+            if (!confirmCreation) return;
+        }
+
         const userData = await apiService.loginUser(name);
-        appState.currentUser = userData;
-        
-        presetTextEl.textContent = userData.name || name;
+        await setCurrentUser(userData);
         loginOverlay.style.display = 'none';
-        
-        await loadDashboard();
+        nameInput.value = '';
     } catch (err) {
         alert('Не удалось подключиться к бэкенду. Проверь, запущен ли сервер.');
     }
 });
+
+userSelectEl.addEventListener('change', async (e) => {
+    const selectedId = e.target.value;
+    const selectedName = e.target.options[e.target.selectedIndex].text;
+    
+    appState.activeCategoryId = null; 
+    await setCurrentUser({ id: parseInt(selectedId), name: selectedName });
+});
+
+btnAddUser.addEventListener('click', () => {
+    loginOverlay.style.display = 'flex';
+    document.getElementById('login-name').focus();
+});
+
+btnDeleteUser.addEventListener('click', async () => {
+    if (!appState.currentUser || !appState.currentUser.id) return;
+
+    const confirmDelete = confirm(`Вы уверены, что хотите удалить профиль "${appState.currentUser.name}"?`);
+    if (!confirmDelete) return;
+
+    try {
+        await apiService.deleteUser(appState.currentUser.id);
+
+        const remainingUsers = await apiService.getUsers();
+        if (remainingUsers.length > 0) {
+            await setCurrentUser(remainingUsers[0]);
+        } else {
+            appState.currentUser = null;
+            userControlsContainer.style.display = 'none';
+            loginOverlay.style.display = 'flex';
+        }
+    } catch (err) {
+        alert('Ошибка при удалении пользователя.');
+    }
+});
+
+async function setCurrentUser(user) {
+    appState.currentUser = user;
+    userControlsContainer.style.display = 'flex';
+    
+    const allUsers = await apiService.getUsers();
+    
+    userSelectEl.innerHTML = '';
+    allUsers.forEach(u => {
+        const opt = document.createElement('option');
+        opt.value = u.id;
+        opt.textContent = u.name;
+        if (u.id === user.id) opt.selected = true;
+        userSelectEl.appendChild(opt);
+    });
+
+    await loadDashboard();
+}
 
 async function loadDashboard() {
     if (!appState.currentUser || !appState.currentUser.id) return;

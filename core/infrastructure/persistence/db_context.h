@@ -1,6 +1,7 @@
 #pragma once
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "../../domain/domain.h"
 #include "install/include/hellnah/Engine/Database.h"
@@ -37,5 +38,42 @@ public:
             } catch (...) { continue; }
         }
         categoryTable.remove(id);
+    }
+
+    void delete_user_cascade(uint64_t userId) {
+        auto resourceTable = resources.open_table<dm::Resource>("resources");
+        auto categoryTable = categories.open_table<dm::Category>("categories");
+        auto userTable = users.open_table<dm::User>("users");
+
+        std::vector<uint64_t> userCategoryIds;
+        for (uint64_t i = 1; i <= categoryTable.quantity + 1; ++i) {
+            try {
+                dm::Category cat = categoryTable.get(i);
+                if (cat.name[0] != '\0' && cat.user_id == userId) {
+                    userCategoryIds.push_back(i);
+                }
+            } catch (...) { continue; }
+        }
+
+        for (uint64_t i = 1; i <= resourceTable.quantity + 1; ++i) {
+            try {
+                dm::Resource res = resourceTable.get(i);
+                if (res.name[0] != '\0') {
+                    for (uint64_t catId : userCategoryIds) {
+                        if (res.category_id == catId) {
+                            resourceTable.remove(i);
+                            break;
+                        }
+                    }
+                }
+            } catch (...) { continue; }
+        }
+        for (uint64_t catId : userCategoryIds) {
+            try {
+                categoryTable.remove(catId);
+            } catch (...) { continue; }
+        }
+
+        userTable.remove(userId);
     }
 };

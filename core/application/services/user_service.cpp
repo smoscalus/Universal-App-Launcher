@@ -16,6 +16,21 @@ DTO::UserDto UserService::getUserById(uint64_t id) {
     }
 }
 
+std::vector<DTO::UserDto> UserService::getAllUsers() {
+    std::vector<DTO::UserDto> usersList;
+    for (uint64_t i = 1; i <= _table.quantity + 1; ++i) {
+        try {
+            dm::User user = _table.get(i);
+            if (user.name[0] == '\0') continue;
+            
+            usersList.push_back(UserMapper::to_dto(user, i));
+        } catch (...) {
+            continue;
+        }
+    }
+    return usersList;
+}
+
 bool UserService::existsByUsername(const std::string& name) {
     for (uint64_t i = 1; i <= _table.quantity + 1; ++i) {
         try {
@@ -56,5 +71,13 @@ int UserService::createUser(const DTO::CreateUserRequest& req) {
     } catch (const std::exception& e) {
         std::cerr << "User Authentication Error: " << e.what() << std::endl;
         return -1;
+    }
+}
+
+void UserService::deleteUser(uint64_t id) {
+    try {
+        _context->delete_user_cascade(id);
+    } catch (...) {
+        throw std::runtime_error("Failed to execute cascade delete for user");
     }
 }

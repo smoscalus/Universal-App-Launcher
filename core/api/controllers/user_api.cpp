@@ -15,6 +15,21 @@ void UserController::setup_routes() {
         return crow::response(userDto.to_json());
     });
 
+    CROW_ROUTE(_app, "/users")
+    ([this]() {
+        auto users = _service.getAllUsers();
+        
+        crow::json::wvalue res = crow::json::wvalue::list();
+        int index = 0;
+        for (const auto& user : users) {
+            crow::json::wvalue u;
+            u["id"] = user.id;
+            u["name"] = user.name;
+            res[index++] = std::move(u);
+        }
+        return crow::response(201, res);
+    });
+
     CROW_ROUTE(_app, "/user").methods(crow::HTTPMethod::POST)
     ([this](const crow::request& req) {
         auto data = crow::json::load(req.body);
@@ -37,5 +52,15 @@ void UserController::setup_routes() {
             return crow::response(201, res);
         }
         return crow::response(500, "Error authenticating user");
+    });
+
+    CROW_ROUTE(_app, "/user/<int>").methods(crow::HTTPMethod::DELETE)
+    ([this](int id) {
+        try {
+            _service.deleteUser(static_cast<uint64_t>(id));
+            return crow::response(200, "User and all data deleted cascade");
+        } catch (const std::exception& e) {
+            return crow::response(500, "Error deleting user");
+        }
     });
 }

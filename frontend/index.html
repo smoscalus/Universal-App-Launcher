@@ -10,10 +10,12 @@
 
     <header class="window-bar">
         <div class="window-controls-group">
-            <button class="preset-btn">
-                <span class="preset-icon"></span>
-                <span class="preset-text">Name User preset</span>
-            </button>
+            <div id="user-controls-container" style="display: none; flex-direction: row; align-items: center; gap: 6px;">
+                <select class="preset-btn" id="user-select">
+                </select>
+                <button class="win-btn" id="btn-add-user" title="Создать нового пользователя" style="width: 28px; height: 28px; font-weight: bold; font-size: 16px;">+</button>
+                <button class="win-btn" id="btn-delete-user" title="Удалить текущего пользователя" style="width: 28px; height: 28px; font-size: 16px; color: #8b949e;">×</button>
+            </div>
 
             <div class="window-actions">
                 <button class="win-btn" id="win-minimize">
