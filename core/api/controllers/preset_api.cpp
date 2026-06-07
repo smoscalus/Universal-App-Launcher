@@ -30,7 +30,22 @@ void PresetController::setup_routes() {
         
         std::vector<crow::json::wvalue> list;
         for (const auto& p : presets) {
-            list.push_back(p.to_json());
+            // Берем базовый json пресета, который сгенерировал твой маппер
+            crow::json::wvalue p_json = p.to_json();
+            
+            // Запрашиваем из сервиса вектор ID связанных ресурсов
+            std::vector<uint64_t> res_ids = _service.getResourceIdsForPreset(p.id);
+            
+            // Упаковываем вектор в crow JSON-список
+            std::vector<crow::json::wvalue> res_json_list;
+            for (uint64_t r_id : res_ids) {
+                res_json_list.push_back(r_id);
+            }
+            
+            // Добавляем массив в JSON под ключом, который намертво зашит во фронтенде
+            p_json["resource_ids"] = std::move(res_json_list);
+            
+            list.push_back(std::move(p_json));
         }
         return crow::json::wvalue(list);
     });

@@ -69,19 +69,42 @@ void PresetService::addResourceToPreset(uint64_t presetId, uint64_t resourceId) 
 
 void PresetService::removeResourceFromPreset(uint64_t presetId, uint64_t resourceId) {
     try {
-        for (uint64_t i = 1; i <= _linkTable.quantity + 1; ++i) {
+        // Перебираем с запасом, чтобы точно зацепить все индексы
+        uint64_t total = _linkTable.quantity;
+        for (uint64_t i = 1; i <= total + 5; ++i) {
             try {
                 dm::PresetResource link = _linkTable.get(i);
+                // Проверяем, что запись не пустая и совпадает по ID
                 if (link.preset_id == presetId && link.resource_id == resourceId) {
                     _linkTable.remove(i);
-                    std::cout << "[DB] Resource " << resourceId << " removed from Preset " << presetId << std::endl;
-                    break;
+                    std::cout << "[DB] Resource " << resourceId << " успешно отвязан от Preset " << presetId << " (Индекс: " << i << ")" << std::endl;
+                    return; // Сразу выходим, дело сделано
                 }
             } catch (...) { continue; }
         }
     } catch (const std::exception& e) {
         std::cerr << "Remove Resource from Preset Error: " << e.what() << std::endl;
     }
+}
+
+std::vector<uint64_t> PresetService::getResourceIdsForPreset(uint64_t presetId) {
+    std::vector<uint64_t> resourceIds;
+    
+    // Перебираем всю таблицу связей
+    for (uint64_t i = 1; i <= _linkTable.quantity + 1; ++i) {
+        try {
+            dm::PresetResource link = _linkTable.get(i);
+            
+            // ЖЕСТКАЯ ПРОВЕРКА: валидными считаются только те записи, 
+            // где ID пресета совпадает, а ID ресурса не равен 0 и не равен мусорным значениям
+            if (link.preset_id == presetId && link.resource_id != 0 && link.preset_id != 0 && link.resource_id < 999999) {
+                resourceIds.push_back(link.resource_id);
+            }
+        } catch (...) { 
+            continue; 
+        }
+    }
+    return resourceIds;
 }
 
 void PresetService::runPreset(uint64_t presetId) {

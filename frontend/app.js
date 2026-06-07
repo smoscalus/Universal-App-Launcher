@@ -364,36 +364,54 @@ async function setCurrentUser(user) {
 async function loadDashboard() {
     if (!appState.currentUser || !appState.currentUser.id) return;
 
-    appState.categories = await apiService.getCategories(appState.currentUser.id);
-    appState.resources = await apiService.getResources(appState.currentUser.id);
+    try {
+        appState.categories = await apiService.getCategories(appState.currentUser.id);
+        appState.resources = await apiService.getResources(appState.currentUser.id);
 
-    const serverPresets = await apiService.getPresets(appState.currentUser.id);
-    appState.presets = serverPresets.map(sp => {
-        const localPreset = appState.presets.find(lp => lp.id === sp.id);
-        if (localPreset && (!sp.resource_ids || sp.resource_ids.length === 0)) {
-            sp.resource_ids = localPreset.resource_ids;
+        const serverPresets = await apiService.getPresets(appState.currentUser.id);
+        
+        appState.presets = serverPresets.map(sp => {
+            const localPreset = appState.presets.find(lp => lp.id === sp.id);
+            const rIds = sp.resource_ids || sp.resourceIds || sp.resources || [];
+            
+            if (localPreset) {
+                // ГИБРИДНОЕ КВИТИРОВАНИЕ: 
+                // Если локально во фронтенде мы ЗАведомо удалили ресурс, 
+                // а сервер из-за кэша базы данных всё еще его присылает — мы его жестко фильтруем!
+                if (localPreset.resource_ids) {
+                    sp.resource_ids = rIds.filter(id => {
+                        // Если ресурса не было в локальном состоянии перед обновлением, значит мы его удалили!
+                        return localPreset.resource_ids.includes(id);
+                    });
+                } else {
+                    sp.resource_ids = rIds;
+                }
+            } else {
+                sp.resource_ids = rIds;
+            }
+            return sp;
+        });
+
+        if ((!appState.categories || appState.categories.length === 0) && (!appState.presets || appState.presets.length === 0)) {
+            showEmptyState();
+            sidebarListEl.innerHTML = '';
+            tabsContainer.innerHTML = '';
+            return;
         }
-        if (!sp.resource_ids) sp.resource_ids = [];
-        return sp;
-    });
 
-    if ((!appState.categories || appState.categories.length === 0) && (!appState.presets || appState.presets.length === 0)) {
-        showEmptyState();
-        sidebarListEl.innerHTML = '';
-        tabsContainer.innerHTML = '';
-        return;
-    }
+        showGrid();
+        renderSidebar();
+        renderTabs();
 
-    showGrid();
-    renderSidebar();
-    renderTabs();
-
-    if (!appState.activeCategoryId && !appState.activePresetId && appState.categories.length > 0) {
-        selectCategory(appState.categories[0].id);
-    } else if (appState.activeCategoryId) {
-        selectCategory(appState.activeCategoryId);
-    } else if (appState.activePresetId) {
-        selectPreset(appState.activePresetId);
+        if (!appState.activeCategoryId && !appState.activePresetId && appState.categories.length > 0) {
+            selectCategory(appState.categories[0].id);
+        } else if (appState.activeCategoryId) {
+            selectCategory(appState.activeCategoryId);
+        } else if (appState.activePresetId) {
+            selectPreset(appState.activePresetId);
+        }
+    } catch (err) {
+        console.error("Ошибка при обновлении дашборда:", err);
     }
 }
 
@@ -793,8 +811,8 @@ function showResourceDetails(resource) {
     const badgesContainer = document.getElementById('preset-badges-container');
 
     appState.presets.forEach(preset => {
-        if (!preset.resource_ids) preset.resource_ids = [];
-        const isIncluded = preset.resource_ids.includes(resource.id);
+        const rIds = preset.resource_ids || preset.resourceIds || preset.resources || [];
+        const isIncluded = rIds.includes(resource.id);
 
         const badge = document.createElement('div');
         badge.style.padding = '10px 18px';
@@ -823,13 +841,23 @@ function showResourceDetails(resource) {
         badge.addEventListener('click', async () => {
             try {
                 if (isIncluded) {
-                    preset.resource_ids = preset.resource_ids.filter(id => id !== resource.id);
+                    // Моментально чистим массив локально во фронте
+                    preset.resource_ids = rIds.filter(id => id !== resource.id);
+                    if (preset.resourceIds) preset.resourceIds = preset.resourceIds.filter(id => id !== resource.id);
+                    if (preset.resources) preset.resources = preset.resources.filter(id => id !== resource.id);
+                    
                     await apiService.removeResourceFromPreset(preset.id, resource.id);
                 } else {
+                    // Моментально пушим локально во фронте
+                    if (!preset.resource_ids) preset.resource_ids = [];
                     preset.resource_ids.push(resource.id);
+                    if (preset.resourceIds) preset.resourceIds.push(resource.id);
+                    if (preset.resources) preset.resources.push(resource.id);
+                    
                     await apiService.addResourceToPreset(preset.id, resource.id);
                 }
 
+                // Перерисовываем баджи, сохраняя скролл и контекст
                 showResourceDetails(resource);
             } catch (err) {
                 alert('Не удалось изменить состав связки.');
