@@ -14,3 +14,7 @@ emsdk/
 
 # OS
 .DS_Store
+
+zenity_err.log
+pipe.txt
+selected_path.txt

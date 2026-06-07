@@ -75,11 +75,17 @@ bool ResourceService::launchResource(uint64_t id) {
         dm::Resource res = _table.get(id);
         if (res.name[0] == '\0') return false;
 
-        std::cout << "[Linux Launch] Resource: " << res.name << " Path: " << res.path << std::endl;
+        std::cout << "[Linux Launch via Pipe] Resource: " << res.name << " Path: " << res.path << std::endl;
 
-        std::string cmd = "xdg-open \"" + std::string(res.path) + "\" &"; 
-
-        return std::system(cmd.c_str()) == 0;
+        std::ofstream pipe("/app/pipe.txt");
+        if (pipe.is_open()) {
+            pipe << "\"" << res.path << "\"\n";
+            pipe.close();
+            return true;
+        } else {
+            std::cout << "[Resource Error] Не удалось открыть pipe.txt для запуска!" << std::endl;
+            return false;
+        }
     } catch (...) {
         return false;
     }
