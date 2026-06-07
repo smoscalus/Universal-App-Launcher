@@ -9,7 +9,7 @@ bin/
 *.wasm
 *.js.mem
 
-# Emscripten SDK (на случай если случайно клонировал внутрь)
+# Emscripten SDK
 emsdk/
 
 # OS

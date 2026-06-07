@@ -115,15 +115,16 @@ const apiService = {
         }
     },
 
-    async updateResource(resourceId, name, path, description, categoryId, userId) {
+    async updateResource(resourceId, name, path, description, avatarUrl, categoryId, userId) {
         try {
             const response = await fetch(`${API_BASE_URL}/resource/${resourceId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     name: name,
-                    description: description, // Добавлено поле description в PUT
+                    description: description,
                     path: path,
+                    avatar_url: avatarUrl,
                     category_id: categoryId,
                     user_id: userId
                 })
@@ -168,7 +169,8 @@ let appState = {
     categories: [],          
     resources: [],
     activeCategoryId: null,
-    selectedResource: null
+    selectedResource: null,
+    temporaryBase64Image: ""
 };
 
 const loginOverlay = document.getElementById('login-overlay');
@@ -186,10 +188,14 @@ const contentBodyEl = document.getElementById('content-body');
 const detailArea = document.getElementById('detail-area');
 const inputDetailName = document.getElementById('input-detail-name');
 const inputDetailPath = document.getElementById('input-detail-path');
-const inputDetailDescription = document.getElementById('input-detail-description'); // Новое поле Description
+const inputDetailDescription = document.getElementById('input-detail-description');
 const btnDetailDelete = document.getElementById('btn-detail-delete');
 const btnDetailRun = document.getElementById('btn-detail-run');
 const btnDetailSave = document.getElementById('btn-detail-save');
+
+const btnChangeImage = document.getElementById('btn-change-image');
+const detailImgRender = document.getElementById('detail-img-render');
+const detailPlaceholderSvg = document.getElementById('detail-placeholder-svg');
 
 if (loginForm) {
     loginForm.addEventListener('submit', async (e) => {
@@ -372,11 +378,19 @@ function renderSidebar() {
                 leftContent.style.alignItems = 'center';
                 leftContent.style.gap = '10px';
                 leftContent.style.cursor = 'pointer';
+
+                let avatarStyle = `background: #59616e; border-radius: 3px;`;
+                if (res.avatar_url) {
+                    const imgSrc = res.avatar_url.startsWith('/home/') 
+                        ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}`
+                        : res.avatar_url;
+                    avatarStyle = `background-image: url('${imgSrc}'); background-size: cover; background-position: center; border-radius: 50%;`;
+                }
+
                 leftContent.innerHTML = `
-                    <div style="width: 16px; height: 16px; background: #59616e; border-radius: 3px;"></div>
+                    <div style="width: 18px; height: 18px; flex-shrink: 0; ${avatarStyle}"></div>
                     <span>${res.name}</span>
                 `;
-                // Клик на название в сайдбаре открывает эдит
                 leftContent.addEventListener('click', () => showResourceDetails(res));
                 subItem.appendChild(leftContent);
 
@@ -460,10 +474,23 @@ function selectCategory(id) {
     filtered.forEach(res => {
         const card = document.createElement('div');
         card.classList.add('card');
-        card.innerHTML = `
-            <div class="card-preview"></div>
-            <div class="card-title">${res.name}</div>
-        `;
+        
+        if (res.avatar_url) {
+            const imgSrc = res.avatar_url.startsWith('/home/') 
+                ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}`
+                : res.avatar_url;
+
+            card.innerHTML = `
+                <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
+                <div class="card-title">${res.name}</div>
+            `;
+        } else {
+            card.innerHTML = `
+                <div class="card-preview"></div>
+                <div class="card-title">${res.name}</div>
+            `;
+        }
+        
         card.addEventListener('click', () => showResourceDetails(res));
         gridContainerEl.appendChild(card);
     });
@@ -471,10 +498,25 @@ function selectCategory(id) {
 
 function showResourceDetails(resource) {
     appState.selectedResource = resource;
+    appState.temporaryBase64Image = resource.avatar_url || "";
+    
     if (inputDetailName) inputDetailName.value = resource.name;
     if (inputDetailPath) inputDetailPath.value = resource.path;
-    // Заполняем поле description
     if (inputDetailDescription) inputDetailDescription.value = resource.description || ''; 
+    
+    if (resource.avatar_url) {
+        const imgSrc = resource.avatar_url.startsWith('/home/') 
+            ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(resource.avatar_url)}`
+            : resource.avatar_url;
+            
+        detailImgRender.src = imgSrc;
+        detailImgRender.style.display = 'block';
+        detailPlaceholderSvg.style.display = 'none';
+    } else {
+        detailImgRender.style.display = 'none';
+        detailPlaceholderSvg.style.display = 'block';
+    }
+
     if (detailArea) detailArea.style.display = 'block';
     if (gridContainerEl) gridContainerEl.style.display = 'none';
 }
@@ -482,9 +524,34 @@ function showResourceDetails(resource) {
 function closeDetailArea() {
     if (detailArea) detailArea.style.display = 'none';
     appState.selectedResource = null;
+    appState.temporaryBase64Image = "";
     if (appState.activeCategoryId && appState.resources.filter(r => r.category_id === appState.activeCategoryId).length > 0) {
         if (gridContainerEl) gridContainerEl.style.display = 'grid';
     }
+}
+
+if (btnChangeImage) {
+    btnChangeImage.addEventListener('click', async (e) => {
+        e.preventDefault();
+        
+        try {
+            const response = await fetch(`${API_BASE_URL}/resource/select-image`, { method: 'POST' });
+            if (!response.ok) throw new Error('Выбор изображения отменен');
+            
+            const data = await response.json();
+            const realHostPath = data.path;
+            
+            console.log("🔥 Нативный путь картинки с хоста:", realHostPath);
+            
+            appState.temporaryBase64Image = realHostPath;
+            detailImgRender.src = `${API_BASE_URL}/host-media?path=${encodeURIComponent(realHostPath)}`;
+            detailImgRender.style.display = 'block';
+            detailPlaceholderSvg.style.display = 'none';
+            
+        } catch (err) {
+            console.warn(err.message);
+        }
+    });
 }
 
 if (btnDetailRun) {
@@ -517,7 +584,7 @@ if (btnDetailSave) {
         if (!appState.selectedResource) return;
         const name = inputDetailName.value.trim();
         const path = inputDetailPath.value.trim();
-        const description = inputDetailDescription.value.trim(); // Получаем описание
+        const description = inputDetailDescription.value.trim(); 
         if (!name || !path) return;
 
         try {
@@ -525,7 +592,8 @@ if (btnDetailSave) {
                 appState.selectedResource.id,
                 name,
                 path,
-                description, // Передаем описание
+                description,
+                appState.temporaryBase64Image,
                 appState.selectedResource.category_id,
                 appState.currentUser.id
             );

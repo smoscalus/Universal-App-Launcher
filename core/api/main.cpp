@@ -81,6 +81,100 @@ int main() {
         return res;
     });
 
+    CROW_ROUTE(app, "/host-media").methods(crow::HTTPMethod::GET)([](const crow::request& req) {
+        auto path_param = req.url_params.get("path");
+        if (!path_param) return crow::response(400, "Missing path parameter");
+
+        std::string file_path = path_param;
+
+        if (!std::filesystem::exists(file_path)) {
+            return crow::response(404, "Image file not found inside container");
+        }
+
+        std::ifstream in(file_path, std::ios::in | std::ios::binary);
+        if (!in) return crow::response(500, "Cannot open image file");
+
+        std::string contents((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+
+        crow::response res(contents);
+
+        auto has_extension = [](const std::string& str, const std::string& ext) {
+            return str.size() >= ext.size() && str.rfind(ext) == (str.size() - ext.size());
+        };
+
+        if (has_extension(file_path, ".png")) {
+            res.set_header("Content-Type", "image/png");
+        } else if (has_extension(file_path, ".jpg") || has_extension(file_path, ".jpeg")) {
+            res.set_header("Content-Type", "image/jpeg");
+        } else if (has_extension(file_path, ".webp")) {
+            res.set_header("Content-Type", "image/webp");
+        } else {
+            res.set_header("Content-Type", "application/octet-stream");
+        }
+
+        return res;
+    });
+
+    CROW_ROUTE(app, "/images/<string>")
+    ([](std::string filename) {
+        crow::response res;
+        res.set_static_file_info("frontend/images/" + filename);
+        return res;
+    });
+
+    CROW_ROUTE(app, "/resource/select-image").methods(crow::HTTPMethod::POST)([](){
+        const std::string target_file = "/app/selected_path.txt";
+
+        {
+            std::ofstream clear_file(target_file, std::ios::trunc);
+            clear_file << "WAITING\n";
+        }
+
+        std::ofstream pipe("/app/pipe.txt");
+        if (pipe.is_open()) {
+            pipe << "SELECT_IMAGE\n";
+            pipe.close();
+            std::cout << "[Backend] Отправили SELECT_IMAGE в трубу напрямую!" << std::endl;
+        } else {
+            std::cout << "[Backend] Ошибка: Не удалось открыть pipe.txt" << std::endl;
+            return crow::response(500, "Cannot open FIFO pipe");
+        }
+
+        int timeout = 0;
+        std::string path = "WAITING";
+
+        while (timeout < 60) {
+            std::filesystem::directory_iterator end_itr;
+            for (std::filesystem::directory_iterator itr("/app"); itr != end_itr; ++itr) {
+                if (itr->path().string() == target_file) break;
+            }
+
+            if (std::filesystem::exists(target_file)) {
+                std::ifstream file(target_file);
+                if (file.is_open()) {
+                    std::getline(file, path);
+                }
+            }
+
+            if (path != "WAITING" && !path.empty()) {
+                break;
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            timeout++;
+        }
+
+        std::cout << "[Backend] Получили путь из файла: " << path << std::endl;
+
+        if (path == "CANCELLED" || path == "WAITING" || path.empty()) {
+            return crow::response(400, "Selection cancelled or timeout");
+        }
+
+        crow::json::wvalue dto;
+        dto["path"] = path;
+        return crow::response(dto);
+    });
+
     CROW_ROUTE(app, "/<path>")([frontend_dir](std::string filepath) {
         crow::response res;
         fs::path full_path = frontend_dir / filepath;

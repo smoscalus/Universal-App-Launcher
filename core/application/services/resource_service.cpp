@@ -69,19 +69,18 @@
     void ResourceService::deleteResource(uint64_t id) {
         _table.remove(id);
     }
+    
+bool ResourceService::launchResource(uint64_t id) {
+    try {
+        dm::Resource res = _table.get(id);
+        if (res.name[0] == '\0') return false;
 
-    bool ResourceService::launchResource(uint64_t id) {
-        try {
-            dm::Resource res = _table.get(id);
+        std::cout << "[Linux Launch] Resource: " << res.name << " Path: " << res.path << std::endl;
 
-            if (res.name[0] == '\0') return false;
+        std::string cmd = "xdg-open \"" + std::string(res.path) + "\" &"; 
 
-            std::cout << "[Linux Launch] Resource: " << res.name << " Path: " << res.path << std::endl;
-
-            std::string cmd = "xdg-open \"" + std::string(res.path) + "\" &"; 
-
-            return std::system(cmd.c_str()) == 0;
-        } catch (...) {
-            return false;
-        }
+        return std::system(cmd.c_str()) == 0;
+    } catch (...) {
+        return false;
     }
+}

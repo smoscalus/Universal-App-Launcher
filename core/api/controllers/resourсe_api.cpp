@@ -1,3 +1,6 @@
+#include <fstream>
+#include <filesystem>
+
 #include "resource_api.h"
 #include "../../application/dto/Resource.h"
 #include "../infrastructure/install/include/Crow/crow_all.h"
@@ -13,11 +16,11 @@ void ResourceController::setup_routes() {
         createReq.name = data["name"].s();
         createReq.description = data.has("description") ? std::string(data["description"].s()) : "";
         createReq.path = data["path"].s();
+        createReq.avatar_url = data.has("avatar_url") ? std::string(data["avatar_url"].s()) : ""; // Читаем при POST
         createReq.user_id = data.has("user_id") ? data["user_id"].u() : 0;
         createReq.category_id = data.has("category_id") ? data["category_id"].u() : 0;
 
         int id = _service.createResource(createReq); 
-        
         if (id < 0) return crow::response(500, "DB Error"); 
 
         DTO::CreateResourceResponse resDto{
@@ -25,10 +28,8 @@ void ResourceController::setup_routes() {
             true,
             "Resource created successfully"
         };
-
         return crow::response(201, resDto.to_json()); 
-    }); 
-
+    });
 
     CROW_ROUTE(_app, "/resource/<int>")
     ([this](int id) {
@@ -54,7 +55,7 @@ void ResourceController::setup_routes() {
     });
 
     CROW_ROUTE(_app, "/resource/<int>").methods(crow::HTTPMethod::PUT)
-    ([this]( const crow::request& req, int id) {
+    ([this](const crow::request& req, int id) {
         auto data = crow::json::load(req.body);
         if (!data) return crow::response(400, "Invalid JSON");
 
@@ -64,6 +65,28 @@ void ResourceController::setup_routes() {
         updateReq.path = data["path"].s();
         updateReq.user_id = data.has("user_id") ? data["user_id"].u() : 0;
         updateReq.category_id = data.has("category_id") ? data["category_id"].u() : 0;
+
+        if (data.has("avatar_url")) {
+            std::string base64data = data["avatar_url"].s();
+            if (!base64data.empty() && base64data.find("base64,") != std::string::npos) {
+
+                std::string encoded = base64data.substr(base64data.find("base64,") + 7);
+                std::string decoded = crow::utility::base64decode(encoded);
+
+                std::filesystem::create_directories("frontend/images");
+
+                std::string file_path = "frontend/images/resource_" + std::to_string(id) + ".png";
+                std::ofstream out(file_path, std::ios::binary);
+                if (out) {
+                    out.write(decoded.data(), decoded.size());
+                    out.close();
+                }
+
+                updateReq.avatar_url = "/images/resource_" + std::to_string(id) + ".png";
+            } else {
+                updateReq.avatar_url = base64data;
+            }
+        }
 
         try {
             DTO::ResourceDto updateRes = _service.updateResource(id, updateReq); 

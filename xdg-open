@@ -1,0 +1,19 @@
+#!/bin/bash
+TARGET_PATH="$1"
+
+if [ -z "$TARGET_PATH" ]; then
+    exit 0
+fi
+
+if [[ "$TARGET_PATH" == -* ]]; then
+    exit 0
+fi
+
+if [[ "$TARGET_PATH" =~ ^[a-zA-Z]+:// ]] || [[ "$TARGET_PATH" == /* ]]; then
+    true
+else
+    TARGET_PATH="/app/bin/$TARGET_PATH"
+fi
+
+echo "$TARGET_PATH" >> /app/pipe.txt
+exit 0

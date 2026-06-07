@@ -16,25 +16,8 @@
                 <button class="win-btn" id="btn-add-user" title="Создать нового пользователя" style="width: 28px; height: 28px; font-weight: bold; font-size: 16px;">+</button>
                 <button class="win-btn" id="btn-delete-user" title="Удалить текущего пользователя" style="width: 28px; height: 28px; font-size: 16px; color: #8b949e;">×</button>
             </div>
-
-            <div class="window-actions">
-                <button class="win-btn" id="win-minimize">
-                    <svg width="12" height="2" viewBox="0 0 12 2" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <line y1="1" x2="12" y2="1" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
-                <button class="win-btn" id="win-maximize">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <rect x="1" y="1" width="10" height="10" stroke="currentColor" stroke-width="2" fill="none"/>
-                    </svg>
-                </button>
-                <button class="win-btn" id="win-close">
-                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M1 1L11 11M11 1L1 11" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                </button>
+            
             </div>
-        </div>
     </header>
 
     <div class="main-layout">
@@ -44,7 +27,7 @@
             </div>
             
             <nav class="sidebar-collections" id="sidebar-collections-list">
-                </nav>
+            </nav>
 
             <div class="sidebar-footer">
                 <button class="btn btn-secondary" id="btn-download">Add resource</button>
@@ -54,7 +37,7 @@
 
         <main class="content-area">
             <header class="tabs-header" id="tabs-container">
-                </header>
+            </header>
 
             <div class="content-body" id="content-body">
                 
@@ -67,9 +50,12 @@
                 </div>
 
                 <div id="detail-area" style="display: none; width: 100%; height: 100%; background: #1e2530; border-radius: 12px; padding: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);">
-                    <div id="detail-preview" style="width: 100%; height: calc(100% - 180px); min-height: 200px; background: linear-gradient(135deg, #3a4454, #28303d); border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative;">
-                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                        <button class="btn btn-secondary" style="position: absolute; bottom: 10px; left: 10px; max-width: 160px;">Add/Change Image</button>
+                    <div id="detail-preview" style="width: 100%; height: calc(100% - 180px); min-height: 200px; background: linear-gradient(135deg, #3a4454, #28303d); border-radius: 8px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; overflow: hidden;">
+                        <img id="detail-img-render" src="" style="width: 100%; height: 100%; object-fit: cover; display: none;">
+                        <svg id="detail-placeholder-svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#8b949e" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        
+                        <input type="file" id="modal-file-input" accept="image/*" style="display: none;">
+                        <button class="btn btn-secondary" id="btn-change-image" style="position: absolute; bottom: 10px; left: 10px; max-width: 160px; background: rgba(40,48,61,0.8); backdrop-filter: blur(4px);">Add/Change Image</button>
                     </div>
                     
                     <div style="display: flex; gap: 15px; margin-bottom: 15px;">
@@ -80,7 +66,7 @@
                     <textarea id="input-detail-description" placeholder="Enter entity description here..." style="width: 100%; height: 100px; background: #2d3545; border: 1px solid #343d4c; border-radius: 6px; padding: 10px; color: #fff; outline: none; margin-bottom: 15px; resize: none;"></textarea>
 
                     <div style="display: flex; justify-content: flex-end; gap: 10px;">
-                        <button class="btn btn-secondary" onclick="closeDetailArea()" style="max-width: 100px;">Back</button>
+                        <button class="btn btn-secondary" id="btn-detail-back" style="max-width: 100px;">Back</button>
                         <button class="btn btn-secondary" id="btn-detail-delete" style="background-color: #da3633; max-width: 100px;">Delete</button>
                         <button class="btn btn-secondary" id="btn-detail-save" style="background-color: #2d3545; max-width: 100px;">Save</button>
                         <button class="btn btn-primary" id="btn-detail-run" style="max-width: 120px;">Run</button>
