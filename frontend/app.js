@@ -314,7 +314,9 @@ let appState = {
     tags: [],
     activeCategoryId: null,
     activePresetId: null,
-    activeTagId: null, // Новое состояние активного тега для фильтрации
+    activeTagId: null, 
+    searchMode: 'category', // 'category', 'global', 'tag'
+    lastActiveContext: { type: 'category', id: null }, // Для бэкапа состояния табов
     selectedResource: null,
     temporaryBase64Image: ""
 };
@@ -376,6 +378,7 @@ if (userSelectEl) {
         appState.activeCategoryId = null; 
         appState.activePresetId = null;
         appState.activeTagId = null;
+        appState.lastActiveContext = { type: 'category', id: null };
         closeDetailArea();
         await setCurrentUser({ id: parseInt(selectedId), name: selectedName });
     });
@@ -441,8 +444,20 @@ async function loadDashboard() {
 
     try {
         appState.categories = await apiService.getCategories(appState.currentUser.id);
-        appState.resources = await apiService.getResources(appState.currentUser.id);
         appState.tags = await apiService.getTags(appState.currentUser.id);
+        
+        const rawResources = await apiService.getResources(appState.currentUser.id);
+        appState.resources = await Promise.all(rawResources.map(async (res) => {
+            try {
+                const linkedTagIds = await apiService.getResourceTags(res.id);
+                res.tagNames = appState.tags
+                    .filter(t => linkedTagIds.includes(t.id))
+                    .map(t => t.name.toLowerCase());
+            } catch (e) {
+                res.tagNames = [];
+            }
+            return res;
+        }));
 
         const serverPresets = await apiService.getPresets(appState.currentUser.id);
         
@@ -475,14 +490,20 @@ async function loadDashboard() {
         renderSidebar();
         renderTabs();
 
-        if (!appState.activeCategoryId && !appState.activePresetId && !appState.activeTagId && appState.categories.length > 0) {
-            selectCategory(appState.categories[0].id);
-        } else if (appState.activeCategoryId) {
-            selectCategory(appState.activeCategoryId);
-        } else if (appState.activePresetId) {
-            selectPreset(appState.activePresetId);
-        } else if (appState.activeTagId) {
-            selectTag(appState.activeTagId);
+        const searchInputEl = document.getElementById('search-input');
+        if (searchInputEl && searchInputEl.value.trim() !== "") {
+            handleSearch(searchInputEl.value);
+        } else {
+            if (!appState.activeCategoryId && !appState.activePresetId && !appState.activeTagId && appState.categories.length > 0) {
+                appState.lastActiveContext = { type: 'category', id: appState.categories[0].id };
+                selectCategory(appState.categories[0].id);
+            } else if (appState.activeCategoryId) {
+                selectCategory(appState.activeCategoryId);
+            } else if (appState.activePresetId) {
+                selectPreset(appState.activePresetId);
+            } else if (appState.activeTagId) {
+                selectTag(appState.activeTagId);
+            }
         }
     } catch (err) {
         console.error("Ошибка при обновлении дашборда:", err);
@@ -500,11 +521,9 @@ function showGrid() {
     gridContainerEl.style.display = 'grid';
 }
 
-// Полноценный рендеринг Сайдбара: Категории + Пресеты + ТЕГИ
 function renderSidebar() {
     sidebarListEl.innerHTML = '';
 
-    // Блок 1. Категории
     appState.categories.forEach(cat => {
         const groupWrapper = document.createElement('div');
         groupWrapper.style.marginBottom = '15px';
@@ -525,7 +544,12 @@ function renderSidebar() {
         titleSpan.style.fontWeight = '600';
         titleSpan.style.cursor = 'pointer';
         titleSpan.textContent = cat.name;
-        titleSpan.addEventListener('click', () => selectCategory(cat.id));
+        titleSpan.addEventListener('click', () => {
+            const searchInputEl = document.getElementById('search-input');
+            if (searchInputEl) searchInputEl.value = '';
+            appState.lastActiveContext = { type: 'category', id: cat.id };
+            selectCategory(cat.id);
+        });
         header.appendChild(titleSpan);
 
         const deleteBtn = document.createElement('button');
@@ -601,7 +625,6 @@ function renderSidebar() {
         sidebarListEl.appendChild(groupWrapper);
     });
 
-    // Блок 2. Пресеты связок
     const presetSectionWrapper = document.createElement('div');
     presetSectionWrapper.style.marginTop = '25px';
     presetSectionWrapper.style.borderTop = '1px solid #343d4c';
@@ -638,7 +661,12 @@ function renderSidebar() {
 
         const nameSpan = document.createElement('span');
         nameSpan.textContent = `🚀 ${preset.name}`;
-        nameSpan.addEventListener('click', () => selectPreset(preset.id));
+        nameSpan.addEventListener('click', () => {
+            const searchInputEl = document.getElementById('search-input');
+            if (searchInputEl) searchInputEl.value = '';
+            appState.lastActiveContext = { type: 'preset', id: preset.id };
+            selectPreset(preset.id);
+        });
         pItem.appendChild(nameSpan);
 
         const delBtn = document.createElement('span');
@@ -659,7 +687,6 @@ function renderSidebar() {
     });
     sidebarListEl.appendChild(presetSectionWrapper);
 
-    // Блок 3. 🏷️ ВЫДЕЛЕННЫЙ БЛОК ДЛЯ ТЕГОВ (Новое рабочее пространство)
     const tagSectionWrapper = document.createElement('div');
     tagSectionWrapper.style.marginTop = '25px';
     tagSectionWrapper.style.borderTop = '1px solid #343d4c';
@@ -688,7 +715,7 @@ function renderSidebar() {
         tItem.style.fontSize = '13px';
 
         if (tag.id === appState.activeTagId) {
-            tItem.style.backgroundColor = 'rgba(59, 130, 246, 0.25)'; // Подсветка активного синего тега
+            tItem.style.backgroundColor = 'rgba(59, 130, 246, 0.25)'; 
             tItem.style.color = '#3b82f6';
         } else {
             tItem.style.color = 'var(--text-muted)';
@@ -696,7 +723,12 @@ function renderSidebar() {
 
         const tagNameSpan = document.createElement('span');
         tagNameSpan.textContent = `# ${tag.name}`;
-        tagNameSpan.addEventListener('click', () => selectTag(tag.id));
+        tagNameSpan.addEventListener('click', () => {
+            const searchInputEl = document.getElementById('search-input');
+            if (searchInputEl) searchInputEl.value = '';
+            appState.lastActiveContext = { type: 'tag', id: tag.id };
+            selectTag(tag.id);
+        });
         tItem.appendChild(tagNameSpan);
 
         const delTagBtn = document.createElement('span');
@@ -717,7 +749,6 @@ function renderSidebar() {
     });
     sidebarListEl.appendChild(tagSectionWrapper);
 
-    // Слушатели кнопок создания
     const btnAddPresetReal = document.getElementById('btn-add-preset');
     if (btnAddPresetReal) {
         btnAddPresetReal.onclick = async () => {
@@ -757,7 +788,12 @@ function renderTabs() {
 
         const tabTitle = document.createElement('span');
         tabTitle.textContent = cat.name;
-        tabTitle.addEventListener('click', () => selectCategory(cat.id));
+        tabTitle.addEventListener('click', () => {
+            const searchInputEl = document.getElementById('search-input');
+            if (searchInputEl) searchInputEl.value = '';
+            appState.lastActiveContext = { type: 'category', id: cat.id };
+            selectCategory(cat.id);
+        });
         tab.appendChild(tabTitle);
 
         const closeTabBtn = document.createElement('span');
@@ -795,23 +831,7 @@ function selectCategory(id) {
     }
     
     showGrid();
-    filtered.forEach(res => {
-        const card = document.createElement('div');
-        card.classList.add('card');
-        
-        if (res.avatar_url) {
-            const imgSrc = res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
-            card.innerHTML = `
-                <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
-                <div class="card-title">${res.name}</div>
-            `;
-        } else {
-            card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
-        }
-        
-        card.addEventListener('click', () => showResourceDetails(res));
-        gridContainerEl.appendChild(card);
-    });
+    renderResourceCards(filtered);
 }
 
 function selectPreset(presetId) {
@@ -868,24 +888,9 @@ function selectPreset(presetId) {
         return;
     }
 
-    filteredResources.forEach(res => {
-        const card = document.createElement('div');
-        card.classList.add('card');
-        const imgSrc = res.avatar_url && res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
-        if (res.avatar_url) {
-            card.innerHTML = `
-                <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
-                <div class="card-title">${res.name}</div>
-            `;
-        } else {
-            card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
-        }
-        card.addEventListener('click', () => showResourceDetails(res));
-        gridContainerEl.appendChild(card);
-    });
+    renderResourceCards(filteredResources);
 }
 
-// 🏷️ НОВЫЙ СКРИПТ: Выбор тега в сайдбаре и фильтрация ресурсов по нему
 async function selectTag(tagId) {
     appState.activeTagId = tagId;
     appState.activeCategoryId = null;
@@ -901,7 +906,6 @@ async function selectTag(tagId) {
     gridContainerEl.innerHTML = '';
     showGrid();
 
-    // Красивый информационный заголовок для фильтра по тегам
     const headerCard = document.createElement('div');
     headerCard.style.gridColumn = '1 / -1';
     headerCard.style.background = 'linear-gradient(135deg, #1d4ed8, #1e293b)';
@@ -914,31 +918,101 @@ async function selectTag(tagId) {
     `;
     gridContainerEl.appendChild(headerCard);
 
-    // Идем по ресурсам и проверяем связи на бэкенде
+    const filtered = [];
     for (const res of appState.resources) {
-        try {
-            const linkedTagIds = await apiService.getResourceTags(res.id);
-            if (linkedTagIds.includes(tagId)) {
-                const card = document.createElement('div');
-                card.classList.add('card');
-                const imgSrc = res.avatar_url && res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
-                
-                if (res.avatar_url) {
-                    card.innerHTML = `
-                        <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
-                        <div class="card-title">${res.name}</div>
-                    `;
-                } else {
-                    card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
-                }
-                card.addEventListener('click', () => showResourceDetails(res));
-                gridContainerEl.appendChild(card);
-            }
-        } catch (e) { continue; }
+        const linkedTagIds = await apiService.getResourceTags(res.id);
+        if (linkedTagIds.includes(tagId)) {
+            filtered.push(res);
+        }
     }
+    renderResourceCards(filtered);
 }
 
-// Показ деталей (Чистый, не перегруженный UI)
+// 🔍 КНОПОЧНЫЙ ПОИСК ПО КАТЕГОРИИ / ГЛОБАЛЬНЫЙ / ТЕГАМ
+function handleSearch(query) {
+    const cleanQuery = query.trim().toLowerCase();
+    closeDetailArea(); 
+
+    if (!cleanQuery) {
+        const ctx = appState.lastActiveContext;
+        if (ctx.type === 'category' && ctx.id) selectCategory(ctx.id);
+        else if (ctx.type === 'preset' && ctx.id) selectPreset(ctx.id);
+        else if (ctx.type === 'tag' && ctx.id) selectTag(ctx.id);
+        else if (appState.categories.length > 0) selectCategory(appState.categories[0].id);
+        return;
+    }
+
+    let sourceArray = [];
+    
+    if (appState.searchMode === 'category') {
+        // Режим 1: Ищем строго внутри текущего открытого окна
+        if (appState.activeCategoryId) {
+            sourceArray = appState.resources.filter(r => r.category_id === appState.activeCategoryId);
+        } else if (appState.activePresetId) {
+            const currentPreset = appState.presets.find(p => p.id === appState.activePresetId);
+            const rIds = currentPreset ? (currentPreset.resource_ids || currentPreset.resourceIds || []) : [];
+            sourceArray = appState.resources.filter(r => rIds.includes(r.id));
+        } else if (appState.activeTagId) {
+            sourceArray = appState.resources.filter(async (r) => {
+                const tags = await apiService.getResourceTags(r.id);
+                return tags.includes(appState.activeTagId);
+            });
+        } else {
+            sourceArray = appState.resources;
+        }
+    } else {
+        // Режимы Глобальный и По тегам: сбрасывают фокусы, чтобы показать общий грид
+        appState.activeCategoryId = null;
+        appState.activePresetId = null;
+        appState.activeTagId = null;
+        sidebarListEl.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+        tabsContainer.innerHTML = '';
+        sourceArray = appState.resources;
+    }
+
+    gridContainerEl.innerHTML = '';
+    
+    const filtered = sourceArray.filter(res => {
+        const matchesName = res.name.toLowerCase().includes(cleanQuery);
+        const matchesTags = res.tagNames && res.tagNames.some(tagName => tagName.includes(cleanQuery));
+        
+        if (appState.searchMode === 'tag') {
+            return matchesTags; // Поиск только по совпадению с тегом
+        }
+        return matchesName || matchesTags; // Обычный поиск по имени или тегу
+    });
+
+    if (filtered.length === 0) {
+        gridContainerEl.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">Ничего не найдено по запросу "${query}"</div>`;
+        showGrid();
+        return;
+    }
+
+    showGrid();
+    renderResourceCards(filtered);
+}
+
+function renderResourceCards(array) {
+    showGrid();
+    array.forEach(res => {
+        const card = document.createElement('div');
+        card.classList.add('card');
+        
+        if (res.avatar_url) {
+            const imgSrc = res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
+            card.innerHTML = `
+                <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
+                <div class="card-title">${res.name}</div>
+            `;
+        } else {
+            card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
+        }
+        
+        card.addEventListener('click', () => showResourceDetails(res));
+        gridContainerEl.appendChild(card);
+    });
+}
+
 async function showResourceDetails(resource) {
     appState.selectedResource = resource;
     appState.temporaryBase64Image = resource.avatar_url || "";
@@ -957,7 +1031,6 @@ async function showResourceDetails(resource) {
         detailPlaceholderSvg.style.display = 'block';
     }
 
-    // Менеджер привязки к пресетам
     let presetManagerZone = document.getElementById('detail-preset-manager');
     if (!presetManagerZone) {
         presetManagerZone = document.createElement('div');
@@ -1026,7 +1099,6 @@ async function showResourceDetails(resource) {
         badgesContainer.appendChild(badge);
     });
 
-    // 🏷️ БЛОК ОТОБРАЖЕНИЯ ТЕГОВ НА КАРТОЧКЕ (Только вывод привязанных для минимализма)
     let tagViewerZone = document.getElementById('detail-tag-viewer');
     if (!tagViewerZone) {
         tagViewerZone = document.createElement('div');
@@ -1051,17 +1123,15 @@ async function showResourceDetails(resource) {
             label.style.fontSize = '11px';
             label.style.fontWeight = '600';
             label.textContent = `#${t.name}`;
-            
-            // Клик по тегу на карточке сбрасывает связь (быстрая отвязка)
             label.title = 'Нажми, чтобы отвязать тег';
             label.style.cursor = 'pointer';
             label.onclick = async () => {
                 await apiService.unlinkTagFromResource(resource.id, t.id);
+                await loadDashboard(); 
                 showResourceDetails(resource);
             };
             tagViewerZone.appendChild(label);
         } else {
-            // Маленькая кнопка быстрого добавления тегов из существующих
             const addLabel = document.createElement('span');
             addLabel.style.background = '#242b35';
             addLabel.style.color = '#7e8b9b';
@@ -1073,6 +1143,7 @@ async function showResourceDetails(resource) {
             addLabel.textContent = `+ ${t.name}`;
             addLabel.onclick = async () => {
                 await apiService.linkTagToResource(resource.id, t.id);
+                await loadDashboard(); 
                 showResourceDetails(resource);
             };
             tagViewerZone.appendChild(addLabel);
@@ -1170,6 +1241,40 @@ if (btnAddCollection) {
 
 const btnDownload = document.getElementById('btn-download');
 if (btnDownload) btnDownload.addEventListener('click', handleAddResourceAction);
+
+const searchInputEl = document.getElementById('search-input');
+if (searchInputEl) {
+    searchInputEl.addEventListener('input', (e) => {
+        handleSearch(e.target.value);
+    });
+}
+
+// 🕹️ ЛОГИКА ЦИКЛИЧЕСКОЙ КНОПКИ ПЕРЕКЛЮЧЕНИЯ РЕЖИМОВ ПОИСКА
+const btnSearchMode = document.getElementById('btn-search-mode');
+if (btnSearchMode) {
+    btnSearchMode.addEventListener('click', () => {
+        const inputEl = document.getElementById('search-input');
+        
+        if (appState.searchMode === 'category') {
+            appState.searchMode = 'global';
+            btnSearchMode.textContent = '🌐 Глоб.';
+            inputEl.placeholder = 'Глобальный поиск...';
+        } else if (appState.searchMode === 'global') {
+            appState.searchMode = 'tag';
+            btnSearchMode.textContent = '🏷️ Тег';
+            inputEl.placeholder = 'Поиск только по тегам...';
+        } else {
+            appState.searchMode = 'category';
+            btnSearchMode.textContent = '📂 Кат.';
+            inputEl.placeholder = 'Поиск в категории...';
+        }
+
+        // Если в поле ввода уже что-то написано — мгновенно пересчитываем сетку в новом режиме
+        if (inputEl.value.trim() !== '') {
+            handleSearch(inputEl.value);
+        }
+    });
+}
 
 if (contentBodyEl) {
     contentBodyEl.addEventListener('click', (e) => {
