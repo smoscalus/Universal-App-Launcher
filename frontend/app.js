@@ -231,6 +231,78 @@ const apiService = {
             console.error('API Error (launchPreset):', error);
             throw error;
         }
+    },
+
+    async getTags(userId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/user/${userId}/tags`);
+            if (!response.ok) throw new Error('Failed to fetch tags');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error (getTags):', error);
+            return [];
+        }
+    },
+
+    async createTag(name, userId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/tag`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, description: "", user_id: userId })
+            });
+            if (!response.ok) throw new Error('Create tag failed');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error (createTag):', error);
+            throw error;
+        }
+    },
+
+    async deleteTag(tagId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/tag/${tagId}`, {
+                method: 'DELETE'
+            });
+            if (!response.ok) throw new Error('Delete tag failed');
+            return true;
+        } catch (error) {
+            console.error('API Error (deleteTag):', error);
+            throw error;
+        }
+    },
+
+    async getResourceTags(resourceId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/resource/${resourceId}/tags`);
+            if (!response.ok) throw new Error('Failed to fetch resource tags');
+            return await response.json();
+        } catch (error) {
+            console.error('API Error (getResourceTags):', error);
+            return [];
+        }
+    },
+
+    async linkTagToResource(resourceId, tagId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/tags/${tagId}`, { method: 'POST' });
+            if (!response.ok) throw new Error('Link tag failed');
+            return true;
+        } catch (error) {
+            console.error('API Error (linkTagToResource):', error);
+            throw error;
+        }
+    },
+
+    async unlinkTagFromResource(resourceId, tagId) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/resources/${resourceId}/tags/${tagId}`, { method: 'DELETE' });
+            if (!response.ok) throw new Error('Unlink tag failed');
+            return true;
+        } catch (error) {
+            console.error('API Error (unlinkTagFromResource):', error);
+            throw error;
+        }
     }
 };
 
@@ -239,8 +311,10 @@ let appState = {
     categories: [],          
     resources: [],
     presets: [],
+    tags: [],
     activeCategoryId: null,
     activePresetId: null,
+    activeTagId: null, // Новое состояние активного тега для фильтрации
     selectedResource: null,
     temporaryBase64Image: ""
 };
@@ -301,6 +375,7 @@ if (userSelectEl) {
         const selectedName = e.target.options[e.target.selectedIndex].text;
         appState.activeCategoryId = null; 
         appState.activePresetId = null;
+        appState.activeTagId = null;
         closeDetailArea();
         await setCurrentUser({ id: parseInt(selectedId), name: selectedName });
     });
@@ -367,6 +442,7 @@ async function loadDashboard() {
     try {
         appState.categories = await apiService.getCategories(appState.currentUser.id);
         appState.resources = await apiService.getResources(appState.currentUser.id);
+        appState.tags = await apiService.getTags(appState.currentUser.id);
 
         const serverPresets = await apiService.getPresets(appState.currentUser.id);
         
@@ -375,12 +451,8 @@ async function loadDashboard() {
             const rIds = sp.resource_ids || sp.resourceIds || sp.resources || [];
             
             if (localPreset) {
-                // ГИБРИДНОЕ КВИТИРОВАНИЕ: 
-                // Если локально во фронтенде мы ЗАведомо удалили ресурс, 
-                // а сервер из-за кэша базы данных всё еще его присылает — мы его жестко фильтруем!
                 if (localPreset.resource_ids) {
                     sp.resource_ids = rIds.filter(id => {
-                        // Если ресурса не было в локальном состоянии перед обновлением, значит мы его удалили!
                         return localPreset.resource_ids.includes(id);
                     });
                 } else {
@@ -403,12 +475,14 @@ async function loadDashboard() {
         renderSidebar();
         renderTabs();
 
-        if (!appState.activeCategoryId && !appState.activePresetId && appState.categories.length > 0) {
+        if (!appState.activeCategoryId && !appState.activePresetId && !appState.activeTagId && appState.categories.length > 0) {
             selectCategory(appState.categories[0].id);
         } else if (appState.activeCategoryId) {
             selectCategory(appState.activeCategoryId);
         } else if (appState.activePresetId) {
             selectPreset(appState.activePresetId);
+        } else if (appState.activeTagId) {
+            selectTag(appState.activeTagId);
         }
     } catch (err) {
         console.error("Ошибка при обновлении дашборда:", err);
@@ -426,9 +500,11 @@ function showGrid() {
     gridContainerEl.style.display = 'grid';
 }
 
+// Полноценный рендеринг Сайдбара: Категории + Пресеты + ТЕГИ
 function renderSidebar() {
     sidebarListEl.innerHTML = '';
 
+    // Блок 1. Категории
     appState.categories.forEach(cat => {
         const groupWrapper = document.createElement('div');
         groupWrapper.style.marginBottom = '15px';
@@ -525,6 +601,7 @@ function renderSidebar() {
         sidebarListEl.appendChild(groupWrapper);
     });
 
+    // Блок 2. Пресеты связок
     const presetSectionWrapper = document.createElement('div');
     presetSectionWrapper.style.marginTop = '25px';
     presetSectionWrapper.style.borderTop = '1px solid #343d4c';
@@ -580,20 +657,82 @@ function renderSidebar() {
         pItem.appendChild(delBtn);
         presetSectionWrapper.appendChild(pItem);
     });
-
     sidebarListEl.appendChild(presetSectionWrapper);
 
-    const btnAddPreset = document.getElementById('btn-add-preset');
-    if (btnAddPreset) {
-        btnAddPreset.onclick = async () => {
+    // Блок 3. 🏷️ ВЫДЕЛЕННЫЙ БЛОК ДЛЯ ТЕГОВ (Новое рабочее пространство)
+    const tagSectionWrapper = document.createElement('div');
+    tagSectionWrapper.style.marginTop = '25px';
+    tagSectionWrapper.style.borderTop = '1px solid #343d4c';
+    tagSectionWrapper.style.paddingTop = '15px';
+
+    const tagSidebarHeader = document.createElement('div');
+    tagSidebarHeader.style.display = 'flex';
+    tagSidebarHeader.style.justifyContent = 'space-between';
+    tagSidebarHeader.style.alignItems = 'center';
+    tagSidebarHeader.style.marginBottom = '10px';
+    tagSidebarHeader.innerHTML = `
+        <span style="font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: 1px;">🏷️ ГЛОБАЛЬНЫЕ ТЕГИ</span>
+        <button id="btn-sidebar-add-tag" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:16px; padding:0 5px; font-weight: bold;">+</button>
+    `;
+    tagSectionWrapper.appendChild(tagSidebarHeader);
+
+    appState.tags.forEach(tag => {
+        const tItem = document.createElement('div');
+        tItem.style.display = 'flex';
+        tItem.style.justifyContent = 'space-between';
+        tItem.style.alignItems = 'center';
+        tItem.style.padding = '8px 10px';
+        tItem.style.borderRadius = '6px';
+        tItem.style.cursor = 'pointer';
+        tItem.style.marginBottom = '4px';
+        tItem.style.fontSize = '13px';
+
+        if (tag.id === appState.activeTagId) {
+            tItem.style.backgroundColor = 'rgba(59, 130, 246, 0.25)'; // Подсветка активного синего тега
+            tItem.style.color = '#3b82f6';
+        } else {
+            tItem.style.color = 'var(--text-muted)';
+        }
+
+        const tagNameSpan = document.createElement('span');
+        tagNameSpan.textContent = `# ${tag.name}`;
+        tagNameSpan.addEventListener('click', () => selectTag(tag.id));
+        tItem.appendChild(tagNameSpan);
+
+        const delTagBtn = document.createElement('span');
+        delTagBtn.innerHTML = '×';
+        delTagBtn.style.cursor = 'pointer';
+        delTagBtn.style.fontSize = '16px';
+        delTagBtn.style.color = 'var(--text-muted)';
+        delTagBtn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (confirm(`Удалить тег "${tag.name}" отовсюду?`)) {
+                await apiService.deleteTag(tag.id);
+                if (appState.activeTagId === tag.id) appState.activeTagId = null;
+                await loadDashboard();
+            }
+        });
+        tItem.appendChild(delTagBtn);
+        tagSectionWrapper.appendChild(tItem);
+    });
+    sidebarListEl.appendChild(tagSectionWrapper);
+
+    // Слушатели кнопок создания
+    const btnAddPresetReal = document.getElementById('btn-add-preset');
+    if (btnAddPresetReal) {
+        btnAddPresetReal.onclick = async () => {
             const name = prompt('Введите имя нового пакетного пресета:');
             if (!name) return;
-            try {
-                await apiService.createPreset(name, appState.currentUser.id);
-                await loadDashboard();
-            } catch (err) {
-                alert('Не удалось добавить пресет.');
-            }
+            try { await apiService.createPreset(name, appState.currentUser.id); await loadDashboard(); } catch (err) { alert('Ошибка пресета'); }
+        };
+    }
+
+    const btnSidebarAddTag = document.getElementById('btn-sidebar-add-tag');
+    if (btnSidebarAddTag) {
+        btnSidebarAddTag.onclick = async () => {
+            const name = prompt('Создать новый глобальный тег:');
+            if (!name) return;
+            try { await apiService.createTag(name.trim(), appState.currentUser.id); await loadDashboard(); } catch (err) { alert('Ошибка создания тега'); }
         };
     }
 }
@@ -642,6 +781,7 @@ function renderTabs() {
 function selectCategory(id) {
     appState.activeCategoryId = id;
     appState.activePresetId = null; 
+    appState.activeTagId = null;
     renderSidebar();
     renderTabs();
     closeDetailArea();
@@ -660,19 +800,13 @@ function selectCategory(id) {
         card.classList.add('card');
         
         if (res.avatar_url) {
-            const imgSrc = res.avatar_url.startsWith('/home/') 
-                ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}`
-                : res.avatar_url;
-
+            const imgSrc = res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
             card.innerHTML = `
                 <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
                 <div class="card-title">${res.name}</div>
             `;
         } else {
-            card.innerHTML = `
-                <div class="card-preview"></div>
-                <div class="card-title">${res.name}</div>
-            `;
+            card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
         }
         
         card.addEventListener('click', () => showResourceDetails(res));
@@ -683,6 +817,7 @@ function selectCategory(id) {
 function selectPreset(presetId) {
     appState.activePresetId = presetId;
     appState.activeCategoryId = null; 
+    appState.activeTagId = null;
     
     renderSidebar();
     renderTabs();
@@ -716,11 +851,7 @@ function selectPreset(presetId) {
     gridContainerEl.appendChild(headerCard);
 
     document.getElementById('btn-run-entire-preset').addEventListener('click', async () => {
-        try {
-            await apiService.launchPreset(presetId);
-        } catch (err) {
-            alert('Ошибка пакетного запуска.');
-        }
+        try { await apiService.launchPreset(presetId); } catch (err) { alert('Ошибка пакетного запуска.'); }
     });
 
     const rIds = currentPreset.resource_ids || currentPreset.resourceIds || currentPreset.resources || []; 
@@ -740,29 +871,75 @@ function selectPreset(presetId) {
     filteredResources.forEach(res => {
         const card = document.createElement('div');
         card.classList.add('card');
-        
-        const imgSrc = res.avatar_url && res.avatar_url.startsWith('/home/') 
-            ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}`
-            : res.avatar_url;
-
+        const imgSrc = res.avatar_url && res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
         if (res.avatar_url) {
             card.innerHTML = `
                 <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
                 <div class="card-title">${res.name}</div>
             `;
         } else {
-            card.innerHTML = `
-                <div class="card-preview"></div>
-                <div class="card-title">${res.name}</div>
-            `;
+            card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
         }
-        
         card.addEventListener('click', () => showResourceDetails(res));
         gridContainerEl.appendChild(card);
     });
 }
 
-function showResourceDetails(resource) {
+// 🏷️ НОВЫЙ СКРИПТ: Выбор тега в сайдбаре и фильтрация ресурсов по нему
+async function selectTag(tagId) {
+    appState.activeTagId = tagId;
+    appState.activeCategoryId = null;
+    appState.activePresetId = null;
+
+    renderSidebar();
+    renderTabs();
+    closeDetailArea();
+
+    const currentTag = appState.tags.find(t => t.id === tagId);
+    if (!currentTag) return;
+
+    gridContainerEl.innerHTML = '';
+    showGrid();
+
+    // Красивый информационный заголовок для фильтра по тегам
+    const headerCard = document.createElement('div');
+    headerCard.style.gridColumn = '1 / -1';
+    headerCard.style.background = 'linear-gradient(135deg, #1d4ed8, #1e293b)';
+    headerCard.style.padding = '20px';
+    headerCard.style.borderRadius = '8px';
+    headerCard.style.marginBottom = '15px';
+    headerCard.innerHTML = `
+        <h2 style="margin:0 0 5px 0; font-size:18px; color:#fff;">Сортировка по тегу: #${currentTag.name}</h2>
+        <p style="margin:0; font-size:13px; color:#93c5fd;">Показаны все ресурсы из всех категорий, содержащие эту метку</p>
+    `;
+    gridContainerEl.appendChild(headerCard);
+
+    // Идем по ресурсам и проверяем связи на бэкенде
+    for (const res of appState.resources) {
+        try {
+            const linkedTagIds = await apiService.getResourceTags(res.id);
+            if (linkedTagIds.includes(tagId)) {
+                const card = document.createElement('div');
+                card.classList.add('card');
+                const imgSrc = res.avatar_url && res.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(res.avatar_url)}` : res.avatar_url;
+                
+                if (res.avatar_url) {
+                    card.innerHTML = `
+                        <div class="card-preview" style="background: url('${imgSrc}') center/cover no-repeat; border-radius: 8px;"></div>
+                        <div class="card-title">${res.name}</div>
+                    `;
+                } else {
+                    card.innerHTML = `<div class="card-preview"></div><div class="card-title">${res.name}</div>`;
+                }
+                card.addEventListener('click', () => showResourceDetails(res));
+                gridContainerEl.appendChild(card);
+            }
+        } catch (e) { continue; }
+    }
+}
+
+// Показ деталей (Чистый, не перегруженный UI)
+async function showResourceDetails(resource) {
     appState.selectedResource = resource;
     appState.temporaryBase64Image = resource.avatar_url || "";
     
@@ -771,10 +948,7 @@ function showResourceDetails(resource) {
     if (inputDetailDescription) inputDetailDescription.value = resource.description || ''; 
     
     if (resource.avatar_url) {
-        const imgSrc = resource.avatar_url.startsWith('/home/') 
-            ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(resource.avatar_url)}`
-            : resource.avatar_url;
-            
+        const imgSrc = resource.avatar_url.startsWith('/home/') ? `${API_BASE_URL}/host-media?path=${encodeURIComponent(resource.avatar_url)}` : resource.avatar_url;
         detailImgRender.src = imgSrc;
         detailImgRender.style.display = 'block';
         detailPlaceholderSvg.style.display = 'none';
@@ -783,6 +957,7 @@ function showResourceDetails(resource) {
         detailPlaceholderSvg.style.display = 'block';
     }
 
+    // Менеджер привязки к пресетам
     let presetManagerZone = document.getElementById('detail-preset-manager');
     if (!presetManagerZone) {
         presetManagerZone = document.createElement('div');
@@ -792,7 +967,6 @@ function showResourceDetails(resource) {
         presetManagerZone.style.background = '#1a222d'; 
         presetManagerZone.style.border = '2px solid #3b485d';
         presetManagerZone.style.borderRadius = '10px';
-        presetManagerZone.style.boxShadow = '0 4px 12px rgba(0,0,0,0.2)';
         
         if (inputDetailDescription) {
             detailArea.insertBefore(presetManagerZone, inputDetailDescription);
@@ -820,8 +994,6 @@ function showResourceDetails(resource) {
         badge.style.fontSize = '14px';
         badge.style.fontWeight = '700';
         badge.style.cursor = 'pointer';
-        badge.style.transition = 'all 0.15s ease-in-out';
-        badge.style.userSelect = 'none';
         badge.style.display = 'flex';
         badge.style.alignItems = 'center';
         badge.style.gap = '8px';
@@ -830,50 +1002,81 @@ function showResourceDetails(resource) {
             badge.style.background = '#22c55e';
             badge.style.color = '#fff';
             badge.style.border = '2px solid #22c55e';
-            badge.innerHTML = `<span style="font-size: 16px;">✓</span> <span>${preset.name}</span>`;
+            badge.innerHTML = `<span>✓</span> <span>${preset.name}</span>`;
         } else {
             badge.style.background = '#2d3545';
             badge.style.color = '#9aa5b5';
             badge.style.border = '2px solid #45536a';
-            badge.innerHTML = `<span style="font-size: 16px;">+</span> <span>${preset.name}</span>`;
+            badge.innerHTML = `<span>+</span> <span>${preset.name}</span>`;
         }
 
         badge.addEventListener('click', async () => {
             try {
                 if (isIncluded) {
-                    // Моментально чистим массив локально во фронте
                     preset.resource_ids = rIds.filter(id => id !== resource.id);
-                    if (preset.resourceIds) preset.resourceIds = preset.resourceIds.filter(id => id !== resource.id);
-                    if (preset.resources) preset.resources = preset.resources.filter(id => id !== resource.id);
-                    
                     await apiService.removeResourceFromPreset(preset.id, resource.id);
                 } else {
-                    // Моментально пушим локально во фронте
                     if (!preset.resource_ids) preset.resource_ids = [];
                     preset.resource_ids.push(resource.id);
-                    if (preset.resourceIds) preset.resourceIds.push(resource.id);
-                    if (preset.resources) preset.resources.push(resource.id);
-                    
                     await apiService.addResourceToPreset(preset.id, resource.id);
                 }
-
-                // Перерисовываем баджи, сохраняя скролл и контекст
                 showResourceDetails(resource);
-            } catch (err) {
-                alert('Не удалось изменить состав связки.');
-            }
+            } catch (err) { alert('Ошибка изменения состава связки.'); }
         });
-
-        badge.addEventListener('mouseenter', () => {
-            badge.style.transform = 'scale(1.03)';
-            if (!isIncluded) badge.style.borderColor = '#22c55e';
-        });
-        badge.addEventListener('mouseleave', () => {
-            badge.style.transform = 'scale(1)';
-            if (!isIncluded) badge.style.borderColor = '#45536a';
-        });
-
         badgesContainer.appendChild(badge);
+    });
+
+    // 🏷️ БЛОК ОТОБРАЖЕНИЯ ТЕГОВ НА КАРТОЧКЕ (Только вывод привязанных для минимализма)
+    let tagViewerZone = document.getElementById('detail-tag-viewer');
+    if (!tagViewerZone) {
+        tagViewerZone = document.createElement('div');
+        tagViewerZone.id = 'detail-tag-viewer';
+        tagViewerZone.style.margin = '10px 0';
+        tagViewerZone.style.display = 'flex';
+        tagViewerZone.style.flexWrap = 'wrap';
+        tagViewerZone.style.gap = '6px';
+        detailArea.insertBefore(tagViewerZone, presetManagerZone);
+    }
+
+    const linkedTags = await apiService.getResourceTags(resource.id);
+    tagViewerZone.innerHTML = '';
+    
+    appState.tags.forEach(t => {
+        if (linkedTags.includes(t.id)) {
+            const label = document.createElement('span');
+            label.style.background = '#1d4ed8';
+            label.style.color = '#fff';
+            label.style.padding = '4px 8px';
+            label.style.borderRadius = '4px';
+            label.style.fontSize = '11px';
+            label.style.fontWeight = '600';
+            label.textContent = `#${t.name}`;
+            
+            // Клик по тегу на карточке сбрасывает связь (быстрая отвязка)
+            label.title = 'Нажми, чтобы отвязать тег';
+            label.style.cursor = 'pointer';
+            label.onclick = async () => {
+                await apiService.unlinkTagFromResource(resource.id, t.id);
+                showResourceDetails(resource);
+            };
+            tagViewerZone.appendChild(label);
+        } else {
+            // Маленькая кнопка быстрого добавления тегов из существующих
+            const addLabel = document.createElement('span');
+            addLabel.style.background = '#242b35';
+            addLabel.style.color = '#7e8b9b';
+            addLabel.style.border = '1px dashed #343f52';
+            addLabel.style.padding = '4px 8px';
+            addLabel.style.borderRadius = '4px';
+            addLabel.style.fontSize = '11px';
+            addLabel.style.cursor = 'pointer';
+            addLabel.textContent = `+ ${t.name}`;
+            addLabel.onclick = async () => {
+                await apiService.linkTagToResource(resource.id, t.id);
+                showResourceDetails(resource);
+            };
+            tagViewerZone.appendChild(addLabel);
+        }
     });
 
     if (detailArea) detailArea.style.display = 'block';
@@ -887,10 +1090,14 @@ function closeDetailArea() {
     
     const zone = document.getElementById('detail-preset-manager');
     if (zone) zone.innerHTML = ''; 
+    const tagViewer = document.getElementById('detail-tag-viewer');
+    if (tagViewer) tagViewer.innerHTML = '';
 
     if (appState.activeCategoryId && appState.resources.filter(r => r.category_id === appState.activeCategoryId).length > 0) {
         if (gridContainerEl) gridContainerEl.style.display = 'grid';
     } else if (appState.activePresetId) {
+        if (gridContainerEl) gridContainerEl.style.display = 'grid';
+    } else if (appState.activeTagId) {
         if (gridContainerEl) gridContainerEl.style.display = 'grid';
     }
 }
@@ -898,35 +1105,22 @@ function closeDetailArea() {
 if (btnChangeImage) {
     btnChangeImage.addEventListener('click', async (e) => {
         e.preventDefault();
-        
         try {
             const response = await fetch(`${API_BASE_URL}/resource/select-image`, { method: 'POST' });
             if (!response.ok) throw new Error('Выбор изображения отменен');
-            
             const data = await response.json();
-            const realHostPath = data.path;
-            
-            console.log("🔥 Нативный путь картинки с хоста:", realHostPath);
-            
-            appState.temporaryBase64Image = realHostPath;
-            detailImgRender.src = `${API_BASE_URL}/host-media?path=${encodeURIComponent(realHostPath)}`;
+            appState.temporaryBase64Image = data.path;
+            detailImgRender.src = `${API_BASE_URL}/host-media?path=${encodeURIComponent(data.path)}`;
             detailImgRender.style.display = 'block';
             detailPlaceholderSvg.style.display = 'none';
-            
-        } catch (err) {
-            console.warn(err.message);
-        }
+        } catch (err) { console.warn(err.message); }
     });
 }
 
 if (btnDetailRun) {
     btnDetailRun.addEventListener('click', async () => {
         if (!appState.selectedResource) return;
-        try {
-            await apiService.launchResource(appState.selectedResource.id);
-        } catch (err) {
-            alert('Launch failed');
-        }
+        try { await apiService.launchResource(appState.selectedResource.id); } catch (err) { alert('Launch failed'); }
     });
 }
 
@@ -938,9 +1132,7 @@ if (btnDetailDelete) {
             await apiService.deleteResource(appState.selectedResource.id);
             closeDetailArea();
             await loadDashboard();
-        } catch (err) {
-            alert('Delete failed');
-        }
+        } catch (err) { alert('Delete failed'); }
     });
 }
 
@@ -953,52 +1145,26 @@ if (btnDetailSave) {
         if (!name || !path) return;
 
         try {
-            await apiService.updateResource(
-                appState.selectedResource.id,
-                name,
-                path,
-                description,
-                appState.temporaryBase64Image,
-                appState.selectedResource.category_id,
-                appState.currentUser.id
-            );
+            await apiService.updateResource(appState.selectedResource.id, name, path, description, appState.temporaryBase64Image, appState.selectedResource.category_id, appState.currentUser.id);
             closeDetailArea();
             await loadDashboard();
-        } catch (err) {
-            alert('Update failed');
-        }
+        } catch (err) { alert('Update failed'); }
     });
 }
 
 async function handleAddResourceAction() {
     if (!appState.currentUser || !appState.activeCategoryId) return alert('Select category first!');
-    
-    const name = prompt('Resource Name:');
-    if (!name) return;
-    const path = prompt('Path or URL:');
-    if (!path) return;
-
-    try {
-        await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
-        await loadDashboard();
-    } catch (error) {
-        alert('Failed to add resource');
-    }
+    const name = prompt('Resource Name:'); if (!name) return;
+    const path = prompt('Path or URL:'); if (!path) return;
+    try { await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id); await loadDashboard(); } catch (error) { alert('Failed to add resource'); }
 }
 
 const btnAddCollection = document.getElementById('btn-add-collection');
 if (btnAddCollection) {
     btnAddCollection.addEventListener('click', async () => {
         if (!appState.currentUser) return alert('No user authorized');
-        const name = prompt('New category name:');
-        if (!name) return;
-
-        try {
-            await apiService.createCategory(name, appState.currentUser.id);
-            await loadDashboard();
-        } catch (error) {
-            alert('Failed to create category');
-        }
+        const name = prompt('New category name:'); if (!name) return;
+        try { await apiService.createCategory(name, appState.currentUser.id); await loadDashboard(); } catch (error) { alert('Failed to create category'); }
     });
 }
 
@@ -1007,29 +1173,19 @@ if (btnDownload) btnDownload.addEventListener('click', handleAddResourceAction);
 
 if (contentBodyEl) {
     contentBodyEl.addEventListener('click', (e) => {
-        if (e.target && e.target.id === 'btn-empty-add-resource') {
-            handleAddResourceAction();
-        }
+        if (e.target && e.target.id === 'btn-empty-add-resource') { handleAddResourceAction(); }
     });
-
     contentBodyEl.addEventListener('dragover', (e) => e.preventDefault());
     contentBodyEl.addEventListener('drop', async (e) => {
         e.preventDefault();
         if (!appState.currentUser || !appState.activeCategoryId) return;
-        
         const files = e.dataTransfer.files;
         if (files.length > 0) {
             const file = files[0];
             const name = file.name.split('.').slice(0, -1).join('.') || file.name;
             const path = file.path || file.name;
-            
             if (confirm(`Add file "${name}" to collection?`)) {
-                try {
-                    await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id);
-                    await loadDashboard();
-                } catch (error) {
-                    alert('Drop failed');
-                }
+                try { await apiService.createResource(name, path, appState.activeCategoryId, appState.currentUser.id); await loadDashboard(); } catch (error) { alert('Drop failed'); }
             }
         }
     });
