@@ -75,7 +75,7 @@ void PresetService::removeResourceFromPreset(uint64_t presetId, uint64_t resourc
                 dm::PresetResource link = _linkTable.get(i);
                 if (link.preset_id == presetId && link.resource_id == resourceId) {
                     _linkTable.remove(i);
-                    std::cout << "[DB] Resource " << resourceId << " успешно отвязан от Preset " << presetId << " (Индекс: " << i << ")" << std::endl;
+                    std::cout << "[DB] Resource " << resourceId << " successfully unlinked from Preset" << presetId << " (Index: " << i << ")" << std::endl;
                     return;
                 }
             } 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,11 +10,20 @@
 
     <header class="window-bar">
         <div class="window-controls-group">
+            <div class="nav-arrows">
+                <button class="arrow-btn" id="prev-btn" title="Back" disabled>←</button>
+                <button class="arrow-btn" id="next-btn" title="Forward" disabled>→</button>
+            </div>
+
+            <div class="breadcrumbs-container" id="breadcrumbs">
+                <span>Control Panel</span>
+            </div>
+
             <div id="user-controls-container" style="display: none; flex-direction: row; align-items: center; gap: 6px;">
                 <select class="preset-btn" id="user-select">
                 </select>
-                <button class="win-btn" id="btn-add-user" title="Создать нового пользователя" style="width: 28px; height: 28px; font-weight: bold; font-size: 16px;">+</button>
-                <button class="win-btn" id="btn-delete-user" title="Удалить текущего пользователя" style="width: 28px; height: 28px; font-size: 16px; color: #8b949e;">×</button>
+                <button class="win-btn" id="btn-add-user" title="Create new user">+</button>
+                <button class="win-btn" id="btn-delete-user" title="Delete current user">×</button>
             </div>
         </div>
     </header>
@@ -22,10 +31,10 @@
     <div class="main-layout">
         <aside class="sidebar">
             <div class="search-container" style="display: flex; gap: 6px; align-items: center;">
-                <button id="btn-search-mode" title="Сменить режим поиска" style="background: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); height: 36px; padding: 0 10px; border-radius: 18px; cursor: pointer; font-size: 12px; font-weight: 600; white-space: nowrap; transition: background 0.15s;">
-                    📂 Кат.
+                <button id="btn-search-mode" title="Change search mode">
+                    Cat.
                 </button>
-                <input type="text" id="search-input" placeholder="Поиск в категории...">
+                <input type="text" id="search-input" placeholder="Search in category...">
             </div>
             
             <nav class="sidebar-collections" id="sidebar-collections-list">
@@ -44,8 +53,15 @@
             <div class="content-body" id="content-body">
                 
                 <div class="empty-state" id="empty-state">
-                    <p style="margin-bottom: 15px;">In this collection you don’t have any resources yet.</p>
-                    <button class="btn btn-primary" id="btn-empty-add-resource" style="max-width: 160px; margin: 0 auto; display: block;">Add resource</button>
+                    <div class="empty-state-icon">
+                        <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            <path d="M12 11v6M9 14h6" opacity="0.5"></path>
+                        </svg>
+                    </div>
+                    <h3>Collection is empty</h3>
+                    <p>You don't have any resources in this collection yet.</p>
+                    <button class="btn btn-primary" id="btn-empty-add-resource">Add Resource</button>
                 </div>
 
                 <div class="grid-container" id="grid-container" style="display: none;">
@@ -61,27 +77,23 @@
                     </div>
                     
                     <div style="display: flex; gap: 15px; margin-bottom: 15px;">
-                        <input type="text" id="input-detail-name" placeholder="Name" style="flex: 1; background: #2d3545; border: 1px solid #343d4c; border-radius: 6px; padding: 10px; color: #fff; outline: none;">
-                        <input type="text" id="input-detail-path" placeholder="Path or URL" style="flex: 2; background: #2d3545; border: 1px solid #343d4c; border-radius: 6px; padding: 10px; color: #fff; outline: none;">
+                        <input type="text" id="input-detail-name" placeholder="Name" style="flex: 1; border-radius: 6px; padding: 10px; color: #fff; outline: none;">
+                        <input type="text" id="input-detail-path" placeholder="Path or URL" style="flex: 2; border-radius: 6px; padding: 10px; color: #fff; outline: none;">
                     </div>
                     
-                    <textarea id="input-detail-description" placeholder="Enter entity description here..." style="width: 100%; height: 100px; background: #2d3545; border: 1px solid #343d4c; border-radius: 6px; padding: 10px; color: #fff; outline: none; margin-bottom: 15px; resize: none;"></textarea>
+                    <textarea id="input-detail-description" placeholder="Enter entity description here..." style="width: 100%; height: 100px; border-radius: 6px; padding: 10px; color: #fff; outline: none; margin-bottom: 15px; resize: none;"></textarea>
 
                     <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
                         <button class="btn btn-secondary" id="btn-detail-back" style="max-width: 100px;">Back</button>
                         <button class="btn btn-secondary" id="btn-detail-delete" style="background-color: #da3633; max-width: 100px;">Delete</button>
-                        <button class="btn btn-secondary" id="btn-detail-save" style="background-color: #2d3545; max-width: 100px;">Save</button>
+                        <button class="btn btn-secondary" id="btn-detail-save" style="max-width: 100px;">Save</button>
                         <button class="btn btn-primary" id="btn-detail-run" style="max-width: 120px;">Run</button>
                     </div>
                 </div>
 
             </div>
 
-            <footer class="content-footer">
-                <div class="nav-arrows">
-                    <button class="arrow-btn" id="prev-btn">←</button>
-                    <button class="arrow-btn" id="next-btn">→</button>
-                </div>
+            <footer class="content-footer" style="height: 24px;">
             </footer>
         </main>
     </div>
@@ -92,7 +104,7 @@
             <p>Enter your profile details</p>
             <form id="login-form">
                 <div class="input-group">
-                    <input type="text" id="login-name" placeholder="Имя пользователя (напр. Ivan)" required>
+                    <input type="text" id="login-name" placeholder="Username (e.g. Ivan)" required>
                 </div>
                 <button type="submit" class="btn btn-primary login-submit-btn">Sign in</button>
             </form>

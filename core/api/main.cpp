@@ -64,7 +64,7 @@ int main() {
     fs::path html_path = frontend_dir / "index.html";
 
     if (!fs::exists(html_path)) {
-        std::cerr << "Предупреждение! Фронтенд не найден по пути: " << html_path.string() << std::endl;
+        std::cerr << "Warning! Frontend not found on path:" << html_path.string() << std::endl;
     }
 
     CROW_ROUTE(app, "/")([html_path]() {
@@ -134,9 +134,9 @@ int main() {
         if (pipe.is_open()) {
             pipe << "SELECT_IMAGE\n";
             pipe.close();
-            std::cout << "[Backend] Отправили SELECT_IMAGE в трубу напрямую!" << std::endl;
+            std::cout << "[Backend] Sent SELECT_IMAGE to pipe directly!" << std::endl;
         } else {
-            std::cout << "[Backend] Ошибка: Не удалось открыть pipe.txt" << std::endl;
+            std::cout << "[Backend] window: Failed to open pipe.txt" << std::endl;
             return crow::response(500, "Cannot open FIFO pipe");
         }
 
@@ -164,7 +164,7 @@ int main() {
             timeout++;
         }
 
-        std::cout << "[Backend] Получили путь из файла: " << path << std::endl;
+        std::cout << "[Backend] Got the path from the file:" << path << std::endl;
 
         if (path == "CANCELLED" || path == "WAITING" || path.empty()) {
             return crow::response(400, "Selection cancelled or timeout");

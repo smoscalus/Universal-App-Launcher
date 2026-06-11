@@ -83,7 +83,7 @@ bool ResourceService::launchResource(uint64_t id) {
             pipe.close();
             return true;
         } else {
-            std::cout << "[Resource Error] Не удалось открыть pipe.txt для запуска!" << std::endl;
+            std::cout << "[Resource Error] Failed to open pipe.txt for launch!" << std::endl;
             return false;
         }
     } catch (...) {
